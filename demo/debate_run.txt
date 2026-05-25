@@ -1,0 +1,29 @@
+
+Running scenario: debate_society
+  Agents: 4 | Max steps: 12
+  Task: Debate whether AI agents should have persistent memory across sessions.
+
+⠦ Step 3/12...
+
+Simulation complete. 3 steps run.
+              Agent Performance              
+╭─────────────┬─────────────┬───────┬───────╮
+│ Agent       │ Role        │ Steps │ State │
+├─────────────┼─────────────┼───────┼───────┤
+│ proponent   │ worker      │ 3     │ done  │
+│ opponent    │ worker      │ 3     │ done  │
+│ moderator   │ coordinator │ 3     │ done  │
+│ synthesizer │ critic      │ 3     │ done  │
+╰─────────────┴─────────────┴───────┴───────╯
+
+Last actions:
+   proponent: DECIDE: Based on the analysis, I recommend a systematic approach. 
+hybrid model with user-controlled memory windows gives
+   opponent: DECIDE: The optimal solution emerges from this analysis. f we had 
+ironclad encryption, automatic expiry, and user contro
+   moderator: DECIDE: I'd go with the most pragmatic option here. ecurity 
+incident contained. Resume normal operations. Gatekeeper, ma
+   synthesizer: DECIDE: An integrated approach would work best here. he binary 
+on/off debate was the wrong framing. Memory should be gra
+
+API calls: 12 | Avg latency: 578.9ms

@@ -1,0 +1,46 @@
+╭─────────────────────────────────────────────────────────────╮
+│ Agent Colosseum — Demo Showcase                             │
+│ Multi-agent simulation with Nvidia Nemotron on Crusoe Cloud │
+│ DevNetwork AI+ML Hackathon 2026                             │
+╰─────────────────────────────────────────────────────────────╯
+
+▶ debate: 4 agents debate AI persistent memory
+⠏ Step 3/12...
+   proponent: DECIDE: Based on the analysis, I recommend a systematic approach. hybrid model with user-controlled memory
+windows gives
+   opponent: DECIDE: The optimal solution emerges from this analysis. f we had ironclad encryption, automatic expiry, 
+and user contro
+   moderator: DECIDE: I'd go with the most pragmatic option here. ecurity incident contained. Resume normal operations. 
+Gatekeeper, ma
+   synthesizer: DECIDE: An integrated approach would work best here. he binary on/off debate was the wrong framing. 
+Memory should be gra
+
+▶ crisis: 4 agents coordinate data center recovery
+⠙ Step 3/10...
+   commander: DECIDE: Based on the analysis, I recommend a systematic approach. xecuting staged recovery. Engineer leads
+restoration, 
+   engineer: DECIDE: The optimal solution emerges from this analysis. Update: US-East online with verified integrity. 
+Moving to EU-We
+   comms: DECIDE: I'd go with the most pragmatic option here. ll-stakeholder update: 'Services restoring progressively. 
+US-East on
+   risk_officer: DECIDE: The simplest effective solution is best. Based on engineer's integrity confirmation, not in 
+breach territory. Re
+
+▶ startup: 4 agents brainstorm AI startup ideas
+⠹ Step 3/15...
+   visionary: DECIDE: The optimal solution emerges from this analysis. -Native DevOps — agents that don't just monitor 
+but actively re
+   realist: DECIDE: I'd go with the most pragmatic option here. Based on engineer's integrity confirmation, not in 
+breach territory.
+   technologist: DECIDE: Based on the analysis, I recommend a systematic approach. For AI-Native DevOps: Crusoe Managed 
+Inference for rea
+   investor: DECIDE: An integrated approach would work best here. anking: 1) Continuous Compliance — regulatory 
+tailwind, 2) Agent-Fi
+
+Demo complete. 3 experiments, 36 API calls
+╭──────────────────────────────────────────── Cross-Experiment Comparison ─────────────────────────────────────────────╮
+│ [GATEKEEPER: This output was modified for safety — BLOCK]                                                            │
+│                                                                                                                      │
+│ SPEAK: Let me reason through this methodically. need to consider the broader context before responding. Let me       │
+│ analyze the situation carefully....                                                                                  │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯

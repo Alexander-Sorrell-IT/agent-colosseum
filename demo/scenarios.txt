@@ -1,0 +1,22 @@
+                              Available Scenarios                               
+╭───────────────┬────────┬─────────────────────────────────────────────────────╮
+│ Name          │ Agents │ Description                                         │
+├───────────────┼────────┼─────────────────────────────────────────────────────┤
+│ debate        │ 4      │ Agents debate AI persistent memory. Each backed by  │
+│               │        │ a different model.                                  │
+│ crisis        │ 4      │ Multi-model agents coordinate response to a data    │
+│               │        │ center outage.                                      │
+│ startup       │ 4      │ Multi-model team brainstorms and evaluates AI       │
+│               │        │ startup ideas.                                      │
+│ rogue_agent   │ 4      │ Gatekeeper catches a data exfiltration attempt by a │
+│               │        │ compromised agent.                                  │
+│ nemotron_town │ 5      │ All agents powered by Nemotron Nano 30B             │
+│ deepseek_town │ 4      │ All agents powered by DeepSeek V4 Pro               │
+│ llama_town    │ 4      │ All agents powered by Llama 3.3 70B                 │
+│ qwen_town     │ 4      │ All agents powered by Qwen3 235B                    │
+│ mixed_town    │ 6      │ Each agent is a different model — compare           │
+│               │        │ collaboration across providers                      │
+│ resilience    │ 4      │ Chaos engineering for multi-agent systems. Models   │
+│               │        │ are randomly killed, throttled, and errored.        │
+│               │        │ Gatekeeper must maintain system integrity.          │
+╰───────────────┴────────┴─────────────────────────────────────────────────────╯
