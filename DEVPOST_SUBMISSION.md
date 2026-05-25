@@ -105,8 +105,12 @@ streamlit run demo/app.py
 
 ---
 
-## Project Media (Screenshots)
+## Project Media
 
+### Thumbnail
+Upload `demo/thumbnail.png` — 1200x800 (3:2 ratio), dark theme hero image with project name, stats, and technology badges.
+
+### Screenshots
 Upload these 6 files from `demo/screenshots/`:
 1. `01_landing.png` — Dashboard landing page with Agent Colosseum header
 2. `02_scenario_select.png` — Scenario selector with 10 built-in scenarios
