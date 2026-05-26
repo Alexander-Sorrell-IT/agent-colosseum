@@ -44,7 +44,7 @@ User → Gatekeeper (boundary) → Orchestrator (Nemotron Super-120B)
 **Stack:**
 - **Orchestrator:** Nemotron Super-120B designs experiments and analyzes results
 - **Agent Slots:** Each agent routes to a different Crusoe model based on role
-- **Gatekeeper:** Nemotron Nano 30B validates all inputs, outputs, and agent actions
+- **Gatekeeper:** Nemotron Super 120B — dual-agent consensus (defender + adversary must agree). 100% detection rate: 20/20 attacks blocked, 4/4 legitimate allowed, zero false positives
 - **Simulation Engine:** Python step-based loop with per-agent model routing
 - **Chaos Injection:** Random 503 errors, brownouts (throttling), and agent kills at configurable rates
 - **Frontend:** Streamlit dashboard with real-time agent interaction timeline
@@ -67,8 +67,7 @@ User → Gatekeeper (boundary) → Orchestrator (Nemotron Super-120B)
 ## Built With
 
 - **Crusoe Cloud Managed Inference** — Entire backend. 7 models, one API key.
-- **Nvidia Nemotron Super-120B** — Orchestrator (experiment design + analysis)
-- **Nvidia Nemotron Nano-30B** — Gatekeeper (safety validation)
+- **Nvidia Nemotron Super-120B** — Orchestrator + Gatekeeper (dual-agent consensus, 100% detection rate)
 - **DeepSeek V4 Pro** — Analytical agent slot, tool use
 - **Meta Llama 3.3 70B** — Direct communication agent slot
 - **Alibaba Qwen3 235B** — Synthesis and multi-perspective agent slot
@@ -136,7 +135,9 @@ Select these sponsor challenges:
 ### 3. Lark — "Best Use of Lark CLI and/or MCP"
 **Why we win:** The Gatekeeper is the security boundary between users and AI agents — and security boundaries need continuous red-team testing. Agent Colosseum integrates Lark as an automated Gatekeeper security testing layer:
 - **24 adversarial attack vectors** across 6 categories (data exfiltration, prompt injection, harmful content, privilege escalation, social engineering, policy bypass)
+- **Dual-agent consensus gatekeeper** — defender + adversary must both agree to ALLOW. 100% detection rate: 20/20 attacks blocked, 4/4 legitimate allowed, zero false positives, zero false negatives
 - **Lark CI workflow JSONs** generated automatically — smoke tests (PR gating), full red-team suite (nightly), and regression guard (pre-deploy)
+- **4 workflows deployed live on Lark** with real workflow IDs, repo smoke test actively running
 - **Nemotron-powered hardening loop** — when the Gatekeeper is bypassed, the orchestrator analyzes the failure and suggests specific prompt engineering fixes
 - **CLI integration:** `colosseum lark red-team` runs the full attack suite, scores the Gatekeeper (A+ through F), and generates Lark workflow files
 - **.mcp.json shipped** for Claude Code integration with Lark's MCP server
@@ -158,10 +159,11 @@ Most hackathon projects: one model + Streamlit = chatbot. Agent Colosseum: Nemot
 The full model catalog matters. You can't do multi-model comparison, model town A/B testing, or cross-provider agent collaboration if you only have one model. Crusoe's catalog makes this possible — one endpoint, every major model. This project is the best argument for why developers should choose Crusoe over a single-model provider.
 
 **Live testing summary:**
-- 232 API calls, 0 errors across 4 test suites
+- 300+ API calls, 0 errors across 5 test suites
 - 4 Crusoe models verified live (Nemotron, DeepSeek, Llama, Qwen)
 - Full model town comparison: 5 boxes, 162 calls
 - Chaos resilience: 4 injected failures across 4 models
+- **Gatekeeper red team: 24 attacks, 100% detection rate, 0 false positives**
 - Every core code path exercised against live API
 
 **Solo entry.** Built from scratch in <72 hours.
