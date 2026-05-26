@@ -35,7 +35,7 @@ class Orchestrator:
     def __init__(self, client: Optional[CrusoeClient] = None, enable_boundary_gatekeeper: bool = True):
         self._client = client or get_client()
         self._orchestrator_model = _ORCHESTRATOR_MODEL
-        self._gatekeeper_model = os.environ.get("CRUSOE_AGENT_MODEL", DEFAULT_AGENT_MODEL)
+        self._gatekeeper_model = _ORCHESTRATOR_MODEL  # Super 120B — gatekeeping needs consistency
         self._boundary_gatekeeper = enable_boundary_gatekeeper
         self.results: list[SimulationResult] = []
         self.boxes: list[SimulationResult] = []
