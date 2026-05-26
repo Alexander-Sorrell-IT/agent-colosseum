@@ -65,15 +65,15 @@ h1 {
     <span class="tag tag-nemotron">NEMOTRON SUPER-120B</span>
     <span class="tag tag-crusoe">CRUSOE MANAGED INFERENCE</span>
     <span class="tag tag-models">7 MODELS</span>
-    <span class="tag tag-gatekeeper">DUAL GATEKEEPER</span>
+    <span class="tag tag-gatekeeper">LARK RED TEAM</span>
   </div>
   <div class="stats">
-    <div class="stat"><div class="stat-value">232</div><div class="stat-label">API Calls</div></div>
+    <div class="stat"><div class="stat-value">100%</div><div class="stat-label">Detection Rate</div></div>
+    <div class="stat"><div class="stat-value">300+</div><div class="stat-label">API Calls</div></div>
     <div class="stat"><div class="stat-value">0</div><div class="stat-label">Errors</div></div>
-    <div class="stat"><div class="stat-value">7</div><div class="stat-label">Models</div></div>
-    <div class="stat"><div class="stat-value">5</div><div class="stat-label">Model Towns</div></div>
+    <div class="stat"><div class="stat-value">4</div><div class="stat-label">Lark Workflows</div></div>
   </div>
-  <div class="bottom">DevNetwork AI+ML Hackathon 2026 &middot; Solo Entry &middot; github.com/Alexander-Sorrell-IT/agent-colosseum</div>
+  <div class="bottom">DevNetwork AI+ML Hackathon 2026 &middot; Crusoe + TrueFoundry + Lark &middot; Solo Entry</div>
 </div>
 </body></html>"""
 
