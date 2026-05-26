@@ -37,7 +37,9 @@ Single-model chatbots can't answer these. Agent Colosseum can — because it run
 
 **Streamlit Dashboard** — Interactive UI for designing experiments, watching agent interactions in real-time, viewing performance stats, and reading Nemotron's AI analysis.
 
-**Rich CLI** — Terminal-based control with `list`, `run`, `design`, and `demo` commands. Offline mock mode available for demos without an API key.
+**Rich CLI** — Terminal-based control with `list`, `run`, `design`, `demo`, and `lark` commands. Offline mock mode available for demos without an API key.
+
+**Lark Gatekeeper Red Team** — 24 automated adversarial attack vectors continuously test the dual-layer Gatekeeper. Lark workflow JSONs run as CI security smoke tests on every PR, blocking exfiltration attempts, prompt injection, privilege escalation, and social engineering. When the Gatekeeper is bypassed, Nemotron analyzes the failure and suggests hardening changes. This stretches into the Lark "Best Use of Lark CLI/MCP" challenge.
 
 ### Architecture
 
@@ -100,5 +102,6 @@ colosseum demo
 - Python
 
 ## Challenges Entered
-- Crusoe Cloud Challenge (Primary — NVIDIA DGX Spark)
-- TrueFoundry Resilient Agent Challenge (Chaos injection testing)
+- **Crusoe Cloud Challenge** (Primary — NVIDIA DGX Spark) — Built a Hermes/NemoClaw agent running Nemotron on Crusoe Cloud
+- **TrueFoundry Resilient Agent Challenge** — Chaos injection + Gatekeeper survival across 35 fault events
+- **Lark: Best Use of Lark CLI/MCP** — Automated Gatekeeper red-team security testing with Lark CI workflows

@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "lark": {
+      "type": "http",
+      "url": "https://api.getlark.ai/mcp",
+      "headers": {
+        "X-API-Key": "${GETLARK_API_KEY}"
+      }
+    }
+  }
+}

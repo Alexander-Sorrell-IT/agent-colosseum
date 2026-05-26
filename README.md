@@ -31,6 +31,7 @@ User -> Gatekeeper (boundary) -> Orchestrator (Nemotron) -> Simulation Box
 - **Multi-model collaboration** — Agents backed by different Crusoe models (DeepSeek, Llama, Qwen, Gemma, GPT-OSS, Nemotron) interact autonomously
 - **Model town comparison** — Run identical scenarios with all-Nemotron, all-DeepSeek, all-Llama, all-Qwen, and mixed-model towns to compare performance
 - **Chaos injection** — Randomly kill, throttle, and error model calls to test resilience (TrueFoundry challenge)
+- **Lark Gatekeeper Red Team** — 24 automated adversarial attack vectors test the dual-layer Gatekeeper, with Lark CI workflows for continuous security testing (Lark challenge)
 - **AI-powered analysis** — Nemotron analyzes simulation results and provides genuine insights about model behavior
 - **10 built-in scenarios** — Debate, crisis response, startup brainstorming, rogue agent containment, model towns, and resilience testing
 
@@ -39,10 +40,11 @@ User -> Gatekeeper (boundary) -> Orchestrator (Nemotron) -> Simulation Box
 | Single Model Chatbot | Agent Colosseum |
 |---------------------|-----------------|
 | One model, one response | 7 models collaborating in real-time |
-| No safety validation | Dual-layer Gatekeeper protection |
+| No safety validation | Dual-layer Gatekeeper + Lark red-team testing |
 | Can't compare models | Model town A/B testing built in |
 | No failure testing | Chaos injection for resilience |
 | Static prompt/response | Dynamic multi-agent emergent behavior |
+| No security testing | 24 automated adversarial attack vectors in CI |
 
 Crusoe's entire model catalog is the backend — not just one model.
 
@@ -63,6 +65,9 @@ colosseum list
 
 # Design a custom experiment
 colosseum design "Design a Mars colony governance system"
+
+# Red-team the Gatekeeper (Lark Challenge)
+colosseum lark red-team
 
 # Full demo showcase
 colosseum demo
@@ -122,10 +127,11 @@ All models accessed through a single Crusoe API key:
 
 ```
 src/colosseum/
-├── cli.py                  # Rich CLI (list, run, design, demo)
+├── cli.py                  # Rich CLI (list, run, design, demo, lark)
 ├── crusoe_client.py        # Crusoe Cloud API client (OpenAI-compatible)
 ├── mock_client.py          # Simulated client for offline demo
 ├── types.py                # Core types, model catalog, agent roles
+├── lark_red_team.py        # Lark Gatekeeper red team — 24 attack vectors
 ├── scenarios/              # 10 built-in simulation scenarios
 ├── simulation/
 │   ├── engine.py           # SimulationBox + SlotAgent with Gatekeeper
@@ -138,15 +144,18 @@ demo/
 ├── run_demo.py             # Terminal demo showcase
 ├── record_demo.py          # CLI output recorder
 ├── record_playwright.py    # Playwright browser automation
+├── record_video.py         # Demo video recorder
 └── screenshots/            # Captured demo screenshots
+
+lark_workflows/
+└── gatekeeper_security_suite.json  # Lark CI workflows for Gatekeeper testing
 ```
 
 ## Hackathon Info
 
 **Event:** DevNetwork AI+ML Hackathon 2026
-**Challenge:** Crusoe Cloud — Build with Crusoe Managed Inference
-**Prize:** NVIDIA DGX Spark
+**Challenges Entered:** Crusoe (NVIDIA DGX Spark), TrueFoundry (Resilient Agents), Lark (Best Use of Lark CLI/MCP)
 **Solo Entry:** Alexander Sorrell
 **Deadline:** May 28, 2026 @ 12:00 PM CDT
 
-Built entirely on Crusoe Cloud Managed Inference. Zero external API dependencies — one API key, seven models, infinite possibilities.
+Built entirely on Crusoe Cloud Managed Inference. Zero external API dependencies — one API key, seven models, infinite possibilities. Gatekeeper security continuously verified by Lark red-team workflows.

@@ -60,42 +60,68 @@ def record_video():
 
             print("\n🎬 Recording demo video...")
 
-            # Scene 1: Landing page
-            print("[1/5] Landing page...")
+            # Scene 1: Landing page (Simulation tab)
+            print("[1/6] Landing page...")
             page.goto(STREAMLIT_URL, wait_until="networkidle", timeout=30000)
-            time.sleep(3)
+            time.sleep(2)
 
-            # Scene 2: Select debate scenario
-            print("[2/5] Selecting debate scenario...")
+            # Scene 2: Select debate scenario and run
+            print("[2/6] Selecting debate scenario...")
             try:
                 page.click('[data-baseweb="select"]', timeout=5000)
                 time.sleep(0.5)
                 page.click('text=debate — Agents debate', timeout=5000)
             except Exception:
                 pass
-            time.sleep(2)
+            time.sleep(1.5)
 
-            # Scene 3: Run simulation
-            print("[3/5] Running simulation...")
+            print("[3/6] Running simulation...")
             page.click("button:has-text('Run Simulation')")
             try:
                 page.wait_for_selector("text=Complete in", timeout=180000)
             except Exception:
                 print("  (waiting for simulation to progress...)")
                 time.sleep(30)
-            time.sleep(2)
+            time.sleep(1.5)
 
-            # Scene 4: Scroll through results
-            print("[4/5] Showing results...")
+            # Scene 3: Scroll through simulation results
+            print("[4/6] Showing results...")
             page.evaluate("window.scrollTo(0, 400)")
-            time.sleep(2)
+            time.sleep(1.5)
             page.evaluate("window.scrollTo(0, 800)")
-            time.sleep(2)
-            page.evaluate("window.scrollTo(0, document.body.scrollHeight)")
-            time.sleep(3)
+            time.sleep(1.5)
 
-            # Scene 5: Final overview
-            print("[5/5] Final overview...")
+            # Scene 4: Switch to Lark tab
+            print("[5/6] Lark Gatekeeper Red Team...")
+            page.evaluate("window.scrollTo(0, 0)")
+            time.sleep(0.5)
+            # Click the Lark tab
+            try:
+                page.click("text=🛡️ Lark Gatekeeper Red Team", timeout=5000)
+                time.sleep(1)
+                # Click Run Red Team button
+                page.click("button:has-text('Run Red Team')", timeout=5000)
+                print("  Red Team running...")
+                # Wait for results
+                try:
+                    page.wait_for_selector("text=Security Score", timeout=60000)
+                    print("  Results loaded")
+                except Exception:
+                    time.sleep(8)
+                time.sleep(1)
+                # Scroll through Lark results
+                page.evaluate("window.scrollTo(0, 300)")
+                time.sleep(1.5)
+                page.evaluate("window.scrollTo(0, 600)")
+                time.sleep(1.5)
+                page.evaluate("window.scrollTo(0, document.body.scrollHeight - 400)")
+                time.sleep(2)
+            except Exception as e:
+                print(f"  Lark scene error: {e}")
+                time.sleep(2)
+
+            # Scene 6: Final overview
+            print("[6/6] Final overview...")
             page.evaluate("window.scrollTo(0, 0)")
             time.sleep(2)
 

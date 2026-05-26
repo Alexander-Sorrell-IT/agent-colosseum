@@ -80,7 +80,7 @@ User → Gatekeeper (boundary) → Orchestrator (Nemotron Super-120B)
 - **OpenAI Python SDK** — Crusoe API client (OpenAI-compatible endpoint)
 - **Pydantic v2** — Type safety and config validation
 - **Playwright** — Demo recording and screenshots
-- **HTTPX** — Async HTTP client
+- **Lark CLI/MCP** — Gatekeeper red-team automation and CI security testing
 
 ---
 
@@ -133,8 +133,18 @@ Select these sponsor challenges:
 ### 2. TrueFoundry — "Resilient Agents"
 **Why we qualify:** Chaos injection tested live. 4 failure events (503 errors, brownouts, agent kills) injected across 4 different models. 3 of 4 agents survived and completed the mission. The Gatekeeper maintained safety monitoring through its own brownout. System demonstrated graceful degradation, work redistribution, and failure detection. This is exactly what "Resilient Agents" means.
 
-### 3. Overall Winner / Grand Prize
-**Why:** Multi-model agent simulation platform. Novel architecture (meta-agent hosting simulation box). Production-ready (232 calls, 0 errors). Dual-submission qualified (Crusoe + TrueFoundry). This isn't a chatbot wrapper — it's infrastructure for answering "which model combination works best?"
+### 3. Lark — "Best Use of Lark CLI and/or MCP"
+**Why we win:** The Gatekeeper is the security boundary between users and AI agents — and security boundaries need continuous red-team testing. Agent Colosseum integrates Lark as an automated Gatekeeper security testing layer:
+- **24 adversarial attack vectors** across 6 categories (data exfiltration, prompt injection, harmful content, privilege escalation, social engineering, policy bypass)
+- **Lark CI workflow JSONs** generated automatically — smoke tests (PR gating), full red-team suite (nightly), and regression guard (pre-deploy)
+- **Nemotron-powered hardening loop** — when the Gatekeeper is bypassed, the orchestrator analyzes the failure and suggests specific prompt engineering fixes
+- **CLI integration:** `colosseum lark red-team` runs the full attack suite, scores the Gatekeeper (A+ through F), and generates Lark workflow files
+- **.mcp.json shipped** for Claude Code integration with Lark's MCP server
+
+This is exactly the kind of "useful developer tooling" Lark is looking for — automated security testing for AI agent boundaries that runs continuously in CI. Security teams at AI companies would use this daily.
+
+### 4. Overall Winner / Grand Prize
+**Why:** Multi-model agent simulation platform. Novel architecture (meta-agent hosting simulation box). Production-ready (232 calls, 0 errors). Triple-submission qualified (Crusoe + TrueFoundry + Lark). This isn't a chatbot wrapper — it's infrastructure for answering "which model combination works best?" and "is my AI agent boundary secure?"
 
 ---
 
