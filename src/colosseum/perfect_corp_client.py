@@ -332,6 +332,42 @@ class PerfectCorpClient:
             return {"status": "error", "message": task.get("error", "no task_id")}
         return self._poll_result(item_type, task["task_id"], version="v2.0")
 
+    # ── Result parsing ─────────────────────────────────────────────
+
+    @staticmethod
+    def fetch_skin_analysis_assets(zip_url: str) -> dict:
+        """Download + extract a skin-analysis result zip.
+
+        skin-analysis returns a single 'url' pointing to a zip containing:
+          - score_info.json (per-metric ui_score / raw_score / output_mask_name)
+          - <metric>_output.jpg overlays (acne, pore, wrinkle, texture, etc.)
+          - resize_image.jpg (the processed input)
+
+        Returns dict with parsed scores + bytes for each overlay.
+        """
+        import requests, zipfile, io, json
+
+        resp = requests.get(zip_url, timeout=30)
+        if not resp.ok:
+            return {"status": "error", "message": f"zip download failed: {resp.status_code}"}
+
+        try:
+            zf = zipfile.ZipFile(io.BytesIO(resp.content))
+        except zipfile.BadZipFile as e:
+            return {"status": "error", "message": f"not a zip: {e}"}
+
+        out: dict = {"status": "success", "scores": {}, "overlays": {}, "base_image": None}
+        for name in zf.namelist():
+            base = name.rsplit("/", 1)[-1]
+            if base == "score_info.json":
+                out["scores"] = json.loads(zf.read(name))
+            elif base == "resize_image.jpg":
+                out["base_image"] = zf.read(name)
+            elif base.endswith("_output.jpg"):
+                metric = base.replace("_output.jpg", "")
+                out["overlays"][metric] = zf.read(name)
+        return out
+
     @property
     def stats(self) -> dict:
         return {

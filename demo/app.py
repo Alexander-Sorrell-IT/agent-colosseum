@@ -446,15 +446,14 @@ with tab_perfect:
 
     st.markdown("""
     **How it works:** Four specialized AI agents, each backed by a different Crusoe model,
-    collaborate on a complete beauty consultation. Each agent calls **real Perfect Corp APIs**
-    as tools during the simulation.
+    collaborate on a complete beauty consultation, fed by a **live Perfect Corp skin-analysis call**.
 
-    | Agent | Model | Perfect Corp API |
-    |-------|-------|-----------------|
-    | Skin Analyst | DeepSeek V4 Pro | AI Skin Analysis — texture, moisture, pores, wrinkles, acne |
-    | Tone Expert | Llama 3.3 70B | AI Skin Tone Analysis — undertone, season, foundation match |
-    | Makeup Artist | Qwen3 235B | AI Makeup VTO — virtual try-on with realistic rendering |
-    | Style Coordinator | Nemotron Nano 30B | Synthesizes all results into complete look |
+    | Agent | Model | Role |
+    |-------|-------|------|
+    | Skin Analyst | DeepSeek V4 Pro | Reads the live skin metrics, flags issues |
+    | Tone Expert | Llama 3.3 70B | Recommends foundation + palette from undertone |
+    | Makeup Artist | Qwen3 235B | Suggests looks that complement the analysis |
+    | Style Coordinator | Nemotron Nano 30B | Synthesizes everything into one routine |
     """)
 
     st.divider()
@@ -463,9 +462,9 @@ with tab_perfect:
     with pc_col1:
         api_key_set = bool(os.environ.get("PERFECT_CORP_API_KEY", ""))
         if api_key_set:
-            st.success("Perfect Corp API key configured")
+            st.success("Perfect Corp API key configured (live)")
         else:
-            st.warning("API key not set — uses simulated results")
+            st.warning("API key not set — runs in mock mode")
     with pc_col2:
         st.metric("Perfect Corp APIs", "50+", "Available")
     with pc_col3:
@@ -473,8 +472,116 @@ with tab_perfect:
 
     st.divider()
 
+    # --- Image source: upload OR bundled sample face ---
+    st.markdown("##### 1. Choose a face image")
+    BUNDLED_FACE = Path(__file__).parent / "sample_faces" / "test_face_tight.jpg"
+    pc_up_col, pc_sample_col = st.columns([2, 1])
+    with pc_up_col:
+        uploaded = st.file_uploader("Upload your own photo (jpg/png, face filling >40% of frame)",
+                                    type=["jpg", "jpeg", "png"], key="beauty_upload")
+    with pc_sample_col:
+        st.image(str(BUNDLED_FACE), caption="Bundled sample face", width=200)
+        use_sample = st.checkbox("Use bundled sample face", value=not bool(uploaded), key="use_sample_face")
+
+    # Resolve which bytes to use
+    face_bytes: bytes | None = None
+    face_source = ""
+    if uploaded is not None and not use_sample:
+        face_bytes = uploaded.read()
+        face_source = uploaded.name
+    elif BUNDLED_FACE.exists():
+        face_bytes = BUNDLED_FACE.read_bytes()
+        face_source = "demo/sample_faces/test_face_tight.jpg"
+
+    st.divider()
+
     if st.button("💄 Run Beauty Consultation", type="primary", use_container_width=True):
         from colosseum.scenarios import BEAUTY_CONSULTATION
+        from colosseum.perfect_corp_client import get_perfect_client
+
+        # --- Step 1: Live skin analysis (if API key + face available) ---
+        skin_summary = ""
+        skin_overlay_metrics: list[tuple[str, bytes]] = []  # (metric_name, image_bytes)
+        skin_scores: dict = {}
+
+        if face_bytes and api_key_set:
+            with st.spinner("📸 Running Perfect Corp skin analysis (live API call)..."):
+                pc = get_perfect_client()
+                analysis = pc.analyze_skin(face_bytes)
+
+            if analysis.get("status") == "success":
+                zip_url = (analysis.get("result") or {}).get("url", "")
+                if zip_url:
+                    with st.spinner("📊 Fetching analysis overlays..."):
+                        assets = pc.fetch_skin_analysis_assets(zip_url)
+                    if assets.get("status") == "success":
+                        skin_scores = assets.get("scores", {})
+                        # Display scorecard
+                        st.success(f"✅ Live skin analysis complete — source: {face_source}")
+                        score_cols = st.columns(5)
+                        all_metrics = [(k, v) for k, v in skin_scores.items()
+                                       if isinstance(v, dict) and "ui_score" in v]
+                        for i, (metric, info) in enumerate(all_metrics[:10]):
+                            with score_cols[i % 5]:
+                                st.metric(metric.replace("_", " ").title(),
+                                          f"{info.get('ui_score', 0)}/100")
+                        # Overall + age
+                        overall_col, age_col = st.columns(2)
+                        with overall_col:
+                            overall = skin_scores.get("all", {}).get("score", 0)
+                            st.metric("Overall Skin Score", f"{overall}/100")
+                        with age_col:
+                            est_age = skin_scores.get("skin_age", None)
+                            if est_age:
+                                st.metric("Estimated Skin Age", f"{est_age}")
+
+                        # Mask overlays — show the real ML output Perfect Corp generates
+                        st.markdown("##### 2. Live ML overlays from Perfect Corp")
+                        overlays = assets.get("overlays", {})
+                        # Show 4 most interesting overlays in a row
+                        priority = ["wrinkle", "pore", "acne", "redness", "texture",
+                                    "age_spot", "moisture", "oiliness", "radiance", "dark_circle_v2"]
+                        shown = [(m, overlays[m]) for m in priority if m in overlays][:4]
+                        if shown:
+                            ov_cols = st.columns(len(shown))
+                            for i, (metric, img_bytes) in enumerate(shown):
+                                with ov_cols[i]:
+                                    st.image(img_bytes,
+                                             caption=f"{metric.replace('_',' ').title()} detection",
+                                             use_container_width=True)
+                            skin_overlay_metrics = shown
+
+                        # Build summary that the agents can reason over
+                        score_lines = [f"{k}: {v.get('ui_score','?')}/100"
+                                       for k, v in all_metrics]
+                        skin_summary = (
+                            f"Live Perfect Corp skin analysis results:\n"
+                            f"Overall score: {overall}/100, estimated skin age: {est_age}.\n"
+                            f"Per-metric scores: {', '.join(score_lines)}."
+                        )
+                    else:
+                        st.warning(
+                            "Skin analysis ran but overlays could not be parsed. "
+                            "Agents will proceed with the consultation using general advice."
+                        )
+                else:
+                    st.warning("Skin analysis returned no result URL. Continuing with mock advice.")
+            else:
+                msg = str(analysis.get("message", ""))[:200]
+                if "error_src_face_too_small" in msg or "face_too_small" in msg:
+                    st.info(
+                        "Perfect Corp couldn't detect a large-enough face in the uploaded image — "
+                        "the bundled sample face works as a fallback. Continuing with the agent consultation."
+                    )
+                else:
+                    st.info(
+                        "Live skin analysis unavailable for this image — "
+                        "agents will continue the consultation with general advice. "
+                        f"({msg[:120]})"
+                    )
+        elif not api_key_set:
+            st.info("PERFECT_CORP_API_KEY not set — running consultation in mock mode with simulated skin scores.")
+        st.divider()
 
         if demo_mode:
             client = MockCrusoeClient(latency_range=(0.5, 1.5))
@@ -485,14 +592,20 @@ with tab_perfect:
         from colosseum.simulation.orchestrator import Orchestrator
         orch = Orchestrator(client=client)
 
-        config = BEAUTY_CONSULTATION
+        # Inject the live skin analysis into the scenario so agents reason over real data
+        config = BEAUTY_CONSULTATION.model_copy(deep=True)
+        if skin_summary:
+            config.environment_prompt = config.environment_prompt + "\n\n" + skin_summary
         st.subheader(f"💄 {config.name}")
         st.caption(f"**Host:** Nemotron Super 120B | **Task:** {config.task}")
 
-        # Agent cards
+        # Agent cards with their model avatars
         cols = st.columns(len(config.agents))
         for i, ag in enumerate(config.agents):
             with cols[i]:
+                ag_av = avatar_path_for(ag.model)
+                if ag_av:
+                    st.image(str(ag_av), use_container_width=True)
                 has_tools = "🔧" if ag.tools else ""
                 tool_count = f"{len(ag.tools)} tools" if ag.tools else "no tools"
                 st.markdown(f"""
