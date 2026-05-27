@@ -13,6 +13,12 @@ from rich import box
 
 from colosseum.scenarios import ALL_SCENARIOS
 
+# Scenarios excluded from the default `list` view until upstream issues clear.
+# `colosseum list --all` shows every scenario, including these.
+# nemotron_town: depends on Nemotron Nano (Crusoe 404 on inference endpoint).
+# beauty: tool-call format incompatible with Crusoe sglang validation.
+_HIDDEN_SCENARIOS = {"nemotron_town", "beauty"}
+
 console = Console()
 
 
@@ -33,7 +39,8 @@ def _build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--mock", action="store_true", help="Run in offline demo mode (no API key needed)")
     sub = parser.add_subparsers(dest="command")
 
-    sub.add_parser("list", help="List available scenarios")
+    p_list = sub.add_parser("list", help="List available scenarios")
+    p_list.add_argument("--all", action="store_true", help="Include scenarios hidden by default")
 
     # run
     run_parser = sub.add_parser("run", help="Run a simulation")
@@ -77,14 +84,22 @@ def _build_parser() -> argparse.ArgumentParser:
     return parser
 
 
-def cmd_list() -> None:
-    table = Table(title="Available Scenarios", box=box.ROUNDED)
+def cmd_list(show_all: bool = False) -> None:
+    title = "Available Scenarios" + (" (all)" if show_all else "")
+    table = Table(title=title, box=box.ROUNDED)
     table.add_column("Name", style="cyan")
     table.add_column("Agents")
     table.add_column("Description")
     for name, cfg in ALL_SCENARIOS.items():
+        if not show_all and name in _HIDDEN_SCENARIOS:
+            continue
         table.add_row(name, str(len(cfg.agents)), cfg.description)
     console.print(table)
+    if not show_all and _HIDDEN_SCENARIOS:
+        console.print(
+            f"\n[dim]({len(_HIDDEN_SCENARIOS)} scenario(s) hidden — see `colosseum list --all` "
+            f"for the full set.)[/]"
+        )
 
 
 def cmd_run(args: argparse.Namespace) -> None:
@@ -549,7 +564,7 @@ def main() -> None:
         return
 
     if args.command == "list":
-        cmd_list()
+        cmd_list(show_all=getattr(args, "all", False))
     elif args.command == "run":
         cmd_run(args)
     elif args.command == "compare-hosts":
