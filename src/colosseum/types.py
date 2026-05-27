@@ -131,6 +131,7 @@ class SimulationConfig(BaseModel):
     max_steps: int = 50
     task: str = ""
     success_criteria: str = ""
+    host_model: Optional[str] = None  # Override host model for this simulation box
 
 
 class SimulationResult(BaseModel):

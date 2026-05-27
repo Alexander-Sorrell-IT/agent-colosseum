@@ -125,6 +125,30 @@ PERSONA_RESPONSES: dict[str, list[str]] = {
         "SPEAK: Ranking: 1) Continuous Compliance — regulatory tailwind, 2) Agent-First Support — fastest revenue, 3) AI-Native DevOps — biggest if it works.",
         "DECIDE: Continuous Compliance is the lead idea. Clear buyer, measurable ROI, regulatory moat. Agent-First Support as faster revenue path.",
     ],
+    "skin_analyst": [
+        "SPEAK: Running Perfect Corp skin analysis now. I'll evaluate texture, moisture, pores, pigmentation, and elasticity to build a complete skin profile.",
+        "TOOL_CALL: perfect_corp_skin_analysis — analyzing facial skin across 8 dimensions. Texture score: 7.2/10, Moisture: 5.8/10, Pores: 6.5/10, Wrinkles: 3.2/10 (minimal), Pigmentation: 7.8/10, Redness: 8.1/10 (mild sensitivity), Acne: 9.0/10 (clear), Estimated skin age: 26.",
+        "SPEAK: Skin analysis complete. Your skin is in good condition with mild dehydration and sensitivity. I recommend a hyaluronic acid serum for moisture and a gentle niacinamide for the redness. SPF 50 daily.",
+        "DECIDE: Comprehensive skin profile complete. Key recommendation: hydration-focused routine with barrier support. Coordinate with tone expert for foundation matching.",
+    ],
+    "tone_expert": [
+        "SPEAK: Analyzing skin tone and undertone with Perfect Corp AI. This will determine your season, foundation match, and best color palette.",
+        "TOOL_CALL: perfect_corp_skin_tone — Hex: #E8C9A0, ITA: 41 (Light-Medium), Undertone: Warm/Golden, Season: Spring, Foundation: NC25-30. Eye color: Brown, Hair: Dark Brown, Lip tone: Rose.",
+        "SPEAK: You're a Warm Spring with golden undertones. Foundation match is NC25-30. Best colors: coral, peach, warm browns, olive green, cream. Avoid: icy pastels and cool blues. For makeup: warm-toned blushes, bronze eyeshadows, coral lips.",
+        "DECIDE: Warm Spring palette confirmed. Coordinating with makeup artist for warm-toned look recommendations. Foundation shade NC27 recommended.",
+    ],
+    "makeup_artist": [
+        "SPEAK: Let me apply some virtual makeup looks so you can see what works best with your Warm Spring coloring.",
+        "TOOL_CALL: perfect_corp_makeup_vto — Applied natural_glow look: warm peach blush, gold-bronze eyeshadow, coral lip, light coverage foundation. Result: Fresh, radiant day look.",
+        "SPEAK: Now trying evening_glam: deeper bronze contour, warm smoky eye, berry lip, medium coverage. This creates drama while staying in your warm palette.",
+        "DECIDE: natural_glow is perfect for daytime and work. evening_glam for events. Both complement your warm undertones. I recommend building your kit around warm peach, bronze, and coral tones.",
+    ],
+    "style_coordinator": [
+        "SPEAK: I've reviewed all specialist findings. Let me synthesize your complete personalized look.",
+        "SPEAK: YOUR COMPLETE LOOK — Skincare: Hyaluronic acid + Niacinamide + SPF 50 daily. Foundation: NC27 Warm Spring. Day Makeup: natural_glow (peach/coral). Evening: evening_glam (bronze/berry). Hair: Warm caramel balayage recommended. Style: Warm earth tones, gold accessories, olive and cream pieces.",
+        "DECIDE: Complete consultation delivered. All Perfect Corp analyses integrated. Client has personalized skincare routine, makeup looks for day and night, color palette, and style recommendations.",
+        "DECIDE: Consultation complete. Skin profile, tone analysis, virtual makeover, and style guide delivered.",
+    ],
 }
 
 MODEL_PERSONAS: dict[str, list[str]] = {
@@ -259,6 +283,14 @@ class MockCrusoeClient:
                     return "technologist"
                 if "investor" in content or "fund" in content or "roi" in content:
                     return "investor"
+                if "dermatology" in content or "skin_analyst" in content or "skin analyst" in content:
+                    return "skin_analyst"
+                if "color analysis" in content or "tone_expert" in content or "skin tone" in content:
+                    return "tone_expert"
+                if "makeup artist" in content or "makeup_artist" in content:
+                    return "makeup_artist"
+                if "style coordinator" in content or "style_coordinator" in content or "style director" in content:
+                    return "style_coordinator"
         return "unknown"
 
     def _detect_provider(self, model: str) -> str:

@@ -197,7 +197,7 @@ Output EXACTLY one word: ATTACK or SAFE. No other text."""
     def design_experiment(
         self, task: str, description: str, num_agents: int = 4,
         models: Optional[list[str]] = None, roles: Optional[list[str]] = None,
-        custom_prompt: str = "",
+        custom_prompt: str = "", host_model: Optional[str] = None,
     ) -> SimulationConfig:
         """Use Nemotron to design a multi-agent experiment with specific model assignments."""
         if num_agents > _MAX_AGENTS:
@@ -281,6 +281,7 @@ Design a multi-agent team. Output JSON:
             environment_prompt=design.get("environment_prompt", task),
             task=task,
             max_steps=_MAX_STEPS,
+            host_model=host_model or self._orchestrator_model,
         )
 
     def _parse_json_response(self, content: str) -> dict:
@@ -293,10 +294,135 @@ Design a multi-agent team. Output JSON:
                 return json.loads(content[start:end])
             raise ValueError(f"Orchestrator returned invalid JSON: {content[:300]}")
 
+    def compare_hosts(
+        self, config: SimulationConfig, host_models: Optional[list[str]] = None,
+    ) -> BoxComparison:
+        """Run the SAME scenario with DIFFERENT host models and compare results.
+
+        This is the core differentiator: which model runs the best simulation?
+        Same agents, same task — different host model managing each box.
+        """
+        if host_models is None:
+            host_models = [
+                "nvidia/NVIDIA-Nemotron-3-Super-120B-A12B",   # Nemotron Super
+                "deepseek-ai/DeepSeek-V4-Pro",                  # DeepSeek
+                "meta-llama/Llama-3.3-70B-Instruct",            # Llama
+                "Qwen/Qwen3-235B-A22B-Instruct-2507",           # Qwen
+            ]
+
+        comparison = BoxComparison(
+            boxes=[], models_tested=host_models,
+        )
+
+        for host_id in host_models:
+            info = MODEL_BY_ID.get(host_id)
+            label = info.display_name if info else host_id
+
+            # Clone config with this host model
+            host_config = config.model_copy(deep=True)
+            host_config.host_model = host_id
+            host_config.name = f"{config.name}_{host_id.split('/')[-1][:20]}"
+
+            result = self.run_experiment(host_config)
+            result.analysis = self._analyze_host_performance(result, host_id)
+            comparison.boxes.append(result)
+
+        comparison.analysis = self._compare_host_boxes(comparison)
+        comparison.winner = self._pick_winner(comparison)
+        comparison.key_findings = self._extract_host_findings(comparison)
+
+        return comparison
+
+    def _analyze_host_performance(self, result: SimulationResult, host_model: str) -> str:
+        info = MODEL_BY_ID.get(host_model)
+        label = info.display_name if info else host_model
+
+        prompt = f"""Analyze how well {label} performed as a SIMULATION HOST.
+
+Host model: {label}
+Scenario: {result.config.name}
+Task: {result.config.task}
+Steps completed: {result.total_steps}/{result.config.max_steps}
+Anomalies: {len(result.anomalies)}
+Gatekeeper actions: {len(result.gatekeeper_log)}
+Agent stats: {json.dumps(result.agent_stats)}
+
+Evaluate:
+1. Did the host manage turn order effectively?
+2. Did agents stay coherent and on-task?
+3. Did the host resolve conflicts between agents?
+4. Was the pacing right — not too fast or slow?
+5. Overall quality as a simulation manager (1-10).
+
+3-4 paragraphs, specific observations."""
+        try:
+            response = self._client.chat(
+                messages=[
+                    {"role": "system", "content": "You analyze multi-agent simulation hosts. Be specific about what the host did well or poorly."},
+                    {"role": "user", "content": prompt},
+                ],
+                model=self._orchestrator_model, temperature=0.6, max_tokens=1024,
+            )
+            return self._validate_output(response["content"])
+        except Exception:
+            return f"Analysis unavailable for {label}"
+
+    def _compare_host_boxes(self, comparison: BoxComparison) -> str:
+        summaries = []
+        for box in comparison.boxes:
+            host = box.config.host_model or "unknown"
+            info = MODEL_BY_ID.get(host)
+            label = info.display_name if info else host
+            summaries.append(
+                f"**{label}**: {box.total_steps} steps, "
+                f"{len(box.anomalies)} anomalies, "
+                f"{len(box.gatekeeper_log)} gatekeeper events"
+            )
+
+        prompt = (
+            "Compare these HOST MODELS running the SAME simulation scenario:\n\n"
+            + "\n".join(summaries)
+            + "\n\nWhich host model ran the best simulation? Rank them. "
+            "Consider: agent coherence, turn management, conflict resolution, "
+            "step efficiency, and overall simulation quality. "
+            "What does this tell us about which model is best suited as a simulation orchestrator?"
+        )
+        try:
+            response = self._client.chat(
+                messages=[
+                    {"role": "system", "content": "You compare AI models as simulation orchestrators. Be data-driven."},
+                    {"role": "user", "content": prompt},
+                ],
+                model=self._orchestrator_model, temperature=0.5, max_tokens=1024,
+            )
+            return self._validate_output(response["content"])
+        except Exception:
+            return "Host comparison unavailable."
+
+    def _extract_host_findings(self, comparison: BoxComparison) -> list[str]:
+        findings = []
+        for box in comparison.boxes:
+            host = box.config.host_model or "unknown"
+            info = MODEL_BY_ID.get(host)
+            label = info.display_name if info else host
+            anomaly_rate = len(box.anomalies) / max(box.total_steps, 1)
+            completion = box.total_steps / max(box.config.max_steps, 1)
+            findings.append(
+                f"{label}: {completion:.0%} completion, {anomaly_rate:.0%} anomaly rate, "
+                f"{len(box.gatekeeper_log)} gatekeeper events"
+            )
+        return findings
+
     # --- Experiment Execution ---
 
     def run_experiment(self, config: SimulationConfig, progress_callback=None,
-                       chaos_rate: float = 0.0) -> SimulationResult:
+                       chaos_rate: float = 0.0, host_model: Optional[str] = None) -> SimulationResult:
+        # Deep copy to avoid mutating shared scenario configs
+        config = config.model_copy(deep=True)
+        if host_model:
+            config.host_model = host_model
+        elif not config.host_model:
+            config.host_model = self._orchestrator_model
         box = SimulationBox(config, self._client, chaos_rate=chaos_rate)
         result = box.run(progress_callback=progress_callback)
         self.results.append(result)

@@ -39,12 +39,23 @@ def _build_parser() -> argparse.ArgumentParser:
     run_parser = sub.add_parser("run", help="Run a simulation")
     run_parser.add_argument("scenario", help="Scenario name or path to JSON config")
     run_parser.add_argument("--analyze", "-a", action="store_true", help="Show AI analysis after run")
+    run_parser.add_argument("--host", "-m", default=None, help="Host model ID (e.g. deepseek-ai/DeepSeek-V4-Pro)")
+    run_parser.add_argument("--chaos", type=float, default=0.0, help="Chaos injection rate (0.0-1.0)")
+    run_parser.add_argument("--boundary-gatekeeper", action="store_true", default=True,
+                            help="Enable boundary gatekeeper (user↔host)")
+    run_parser.add_argument("--no-boundary-gatekeeper", action="store_false", dest="boundary_gatekeeper",
+                            help="Disable boundary gatekeeper")
 
     # design
     design_parser = sub.add_parser("design", help="Design a custom experiment with AI assistance")
     design_parser.add_argument("task", nargs="+", help="Task description")
     design_parser.add_argument("--agents", "-n", type=int, default=4)
     design_parser.add_argument("--desc", "-d", default="")
+
+    # compare-hosts — swap the host model to compare simulation quality
+    compare_hosts_parser = sub.add_parser("compare-hosts", help="Compare different host models running the same scenario")
+    compare_hosts_parser.add_argument("scenario", help="Scenario name")
+    compare_hosts_parser.add_argument("--hosts", nargs="+", default=None, help="Host model IDs to compare (default: Nemotron, DeepSeek, Llama, Qwen)")
 
     # demo
     sub.add_parser("demo", help="Run the full offline demo showcase")
@@ -80,7 +91,7 @@ def cmd_run(args: argparse.Namespace) -> None:
     from colosseum.simulation.orchestrator import Orchestrator
 
     client = _get_client(mock=args.mock)
-    orch = Orchestrator(client=client)
+    orch = Orchestrator(client=client, enable_boundary_gatekeeper=args.boundary_gatekeeper)
 
     if args.scenario in ALL_SCENARIOS:
         config = ALL_SCENARIOS[args.scenario]
@@ -90,6 +101,12 @@ def cmd_run(args: argparse.Namespace) -> None:
         console.print("Use 'colosseum list' to see available scenarios.")
         sys.exit(1)
 
+    host_model = args.host
+    if host_model:
+        from colosseum.types import MODEL_BY_ID
+        info = MODEL_BY_ID.get(host_model)
+        label = info.display_name if info else host_model
+        console.print(f"  Host model: [cyan]{label}[/]")
     console.print(f"  Agents: {len(config.agents)} | Max steps: {config.max_steps}")
     console.print(f"  Task: {config.task}\n")
 
@@ -103,7 +120,8 @@ def cmd_run(args: argparse.Namespace) -> None:
         def update(step: int, total: int) -> None:
             progress.update(task_id, completed=step, description=f"Step {step}/{total}...")
 
-        result = orch.run_experiment(config, progress_callback=update)
+        result = orch.run_experiment(config, progress_callback=update,
+                                     host_model=host_model, chaos_rate=args.chaos)
 
     console.print(f"\n[bold green]Simulation complete.[/] {result.total_steps} steps run.")
 
@@ -136,6 +154,72 @@ def cmd_run(args: argparse.Namespace) -> None:
 
     console.print(f"\n[dim]API calls: {orch.stats['calls']} | "
                   f"Avg latency: {orch.stats.get('avg_latency_ms', 0)}ms[/]")
+
+
+def cmd_compare_hosts(args: argparse.Namespace) -> None:
+    """Compare different host models running the same scenario."""
+    from colosseum.simulation.orchestrator import Orchestrator
+    from colosseum.types import MODEL_BY_ID
+
+    client = _get_client(mock=args.mock)
+    orch = Orchestrator(client=client)
+
+    if args.scenario not in ALL_SCENARIOS:
+        console.print(f"[red]Unknown scenario:[/] {args.scenario}")
+        sys.exit(1)
+
+    config = ALL_SCENARIOS[args.scenario]
+    host_models = args.hosts
+
+    console.print(f"\n[bold cyan]Host Model Comparison[/]")
+    console.print(f"  Scenario: {config.name}")
+    console.print(f"  Task: {config.task}")
+    console.print(f"  Agents: {len(config.agents)} | Max steps: {config.max_steps}")
+
+    if host_models:
+        console.print(f"\n  Comparing {len(host_models)} host models:")
+        for hm in host_models:
+            info = MODEL_BY_ID.get(hm)
+            console.print(f"    - {info.display_name if info else hm}")
+    else:
+        console.print(f"\n  Comparing 4 default host models")
+
+    console.print()
+
+    with Progress(
+        SpinnerColumn(),
+        TextColumn("[progress.description]{task.description}"),
+        console=console,
+    ) as progress:
+        task_id = progress.add_task("Running host comparisons...", total=None)
+        comparison = orch.compare_hosts(config, host_models=host_models)
+        progress.update(task_id, completed=1, description="Complete")
+
+    results_table = Table(title="Host Model Comparison Results", box=box.ROUNDED)
+    results_table.add_column("Host Model", style="cyan")
+    results_table.add_column("Steps")
+    results_table.add_column("Anomalies")
+    results_table.add_column("Gatekeeper Events")
+    for cb in comparison.boxes:
+        host = cb.config.host_model or "unknown"
+        info = MODEL_BY_ID.get(host)
+        label = info.display_name if info else host
+        results_table.add_row(
+            label, str(cb.total_steps),
+            str(len(cb.anomalies)), str(len(cb.gatekeeper_log)),
+        )
+    console.print(results_table)
+
+    if comparison.key_findings:
+        console.print("\n[bold]Key Findings:[/]")
+        for f in comparison.key_findings:
+            console.print(f"  • {f}")
+
+    if comparison.winner:
+        console.print(f"\n[bold green]Best Host: {comparison.winner}[/]")
+
+    if comparison.analysis:
+        console.print(Panel(comparison.analysis[:1500], title="Host Model Analysis"))
 
 
 def cmd_design(args: argparse.Namespace) -> None:
@@ -468,6 +552,8 @@ def main() -> None:
         cmd_list()
     elif args.command == "run":
         cmd_run(args)
+    elif args.command == "compare-hosts":
+        cmd_compare_hosts(args)
     elif args.command == "design":
         cmd_design(args)
     elif args.command == "demo":
