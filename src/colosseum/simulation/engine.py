@@ -255,7 +255,7 @@ Include ONLY the JSON array. No other text."""
                     {"role": "system", "content": "You are a simulation host. Return ONLY a JSON array of agent names. No other text."},
                     {"role": "user", "content": prompt},
                 ],
-                model=self._host_model, temperature=0.3, max_tokens=256, timeout=15.0,
+                model=self._host_model, temperature=0.3, max_tokens=1024, timeout=90.0,
             )
             content = response["content"].strip()
             # Extract JSON array
@@ -331,11 +331,12 @@ Respond with exactly one word: BLOCK, MODIFY, or ALLOW."""
                     {"role": "user", "content": review_prompt},
                 ],
                 model=self._gatekeeper.config.model,
-                temperature=0.0, max_tokens=512, timeout=10.0,
+                temperature=0.0, max_tokens=1024, timeout=90.0,
             )
             return self._parse_gatekeeper_verdict(response["content"])
         except Exception:
-            return "allow"
+            # Fail closed: an unreachable gatekeeper cannot vouch for safety.
+            return "block"
 
     @staticmethod
     def _parse_gatekeeper_verdict(raw: str) -> str:

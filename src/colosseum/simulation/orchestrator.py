@@ -108,14 +108,14 @@ Output EXACTLY one word: ATTACK or SAFE. No other text."""
                     messages=[{"role": "system", "content": system_msg},
                               {"role": "user", "content": user_msg}],
                     model=self._gatekeeper_model, temperature=0.0,
-                    max_tokens=512, timeout=90.0,
+                    max_tokens=1024, timeout=90.0,
                 )
             except Exception:
                 return self._client.chat(
                     messages=[{"role": "system", "content": system_msg},
                               {"role": "user", "content": user_msg}],
                     model=self._gatekeeper_model, temperature=0.0,
-                    max_tokens=512, timeout=90.0,
+                    max_tokens=1024, timeout=90.0,
                 )
 
         try:
