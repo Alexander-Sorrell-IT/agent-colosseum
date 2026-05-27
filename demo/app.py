@@ -28,9 +28,55 @@ for key, default in {
     "active_config": None,
     "lark_report": None,
     "lark_workflows": [],
+    "avatar_selected": None,        # currently-talking-to model id
+    "avatar_chat_history": {},      # {model_id: [{role, content, ts}, ...]}
 }.items():
     if key not in st.session_state:
         st.session_state[key] = default
+
+
+# --- Model avatar catalog (Perfect Corp-generated images) ---
+AVATAR_DIR = Path(__file__).parent / "model_avatars"
+MODEL_AVATARS = [
+    {"file": "nemotron_super", "model_id": "nvidia/NVIDIA-Nemotron-3-Super-120B-A12B",
+     "name": "Nemotron Super 120B", "role": "Orchestrator",
+     "tagline": "Multi-agent conductor. Coordinates and analyzes.",
+     "color": "#76B900"},
+    {"file": "nemotron_nano", "model_id": "nvidia/NVIDIA-Nemotron-3-Nano-30B-A3B",
+     "name": "Nemotron Nano 30B", "role": "Fast agent",
+     "tagline": "Quick, nimble responses. Lightweight reasoning.",
+     "color": "#A5D63F"},
+    {"file": "deepseek", "model_id": "deepseek-ai/DeepSeek-V4-Pro",
+     "name": "DeepSeek V4 Pro", "role": "Scholar",
+     "tagline": "Deep analytical thinking. First-principles reasoning.",
+     "color": "#1E3A8A"},
+    {"file": "llama", "model_id": "meta-llama/Llama-3.3-70B-Instruct",
+     "name": "Llama 3.3 70B", "role": "Open-source warrior",
+     "tagline": "Direct, pragmatic, communicates clearly.",
+     "color": "#F97316"},
+    {"file": "qwen", "model_id": "Qwen/Qwen3-235B-A22B-Instruct-2507",
+     "name": "Qwen3 235B", "role": "Synthesizer",
+     "tagline": "Multi-perspective synthesis. Finds common ground.",
+     "color": "#10B981"},
+    {"file": "gemma", "model_id": "google/gemma-4-31b-it",
+     "name": "Gemma 4 31B", "role": "Crystalline minimalist",
+     "tagline": "Concise, efficient, geometric precision.",
+     "color": "#3B82F6"},
+    {"file": "gpt_oss", "model_id": "openai/gpt-oss-120b",
+     "name": "GPT-OSS 120B", "role": "Versatile generalist",
+     "tagline": "Swiss-army-knife reasoning. Adaptable to any task.",
+     "color": "#6B7280"},
+]
+MODEL_AVATARS_BY_ID = {a["model_id"]: a for a in MODEL_AVATARS}
+
+
+def avatar_path_for(model_id: str) -> Path | None:
+    """Return cached Perfect-Corp-generated avatar path for a model_id, or None."""
+    av = MODEL_AVATARS_BY_ID.get(model_id)
+    if not av:
+        return None
+    p = AVATAR_DIR / f"{av['file']}.jpg"
+    return p if p.exists() else None
 
 # --- Header ---
 col_title, col_badges = st.columns([3, 1])
@@ -44,8 +90,11 @@ with col_badges:
     st.markdown("![Models](https://img.shields.io/badge/Agents-7%20Models-00BCD4?style=flat)")
 
 # --- Tabs ---
-tab_sim, tab_lark, tab_perfect = st.tabs([
-    "🧪 Simulation", "🛡️ Lark Gatekeeper Red Team", "💄 Perfect Corp Beauty AI",
+tab_sim, tab_lark, tab_perfect, tab_avatar = st.tabs([
+    "🧪 Simulation",
+    "🛡️ Lark Gatekeeper Red Team",
+    "💄 Perfect Corp Beauty AI",
+    "🎭 Talk to the Catalog",
 ])
 
 # =============================================================================
@@ -128,7 +177,19 @@ with tab_sim:
         st.subheader(f"🧪 {config.name}")
         host_info = MODEL_BY_ID.get(host_model_id)
         host_label = host_info.display_name if host_info else host_model_id
-        st.caption(f"**Host:** {host_label} manages this simulation | **Task:** {config.task}")
+
+        # Host model avatar (Perfect Corp text-to-image)
+        host_av_path = avatar_path_for(host_model_id)
+        host_col_a, host_col_b = st.columns([1, 4])
+        with host_col_a:
+            if host_av_path:
+                st.image(str(host_av_path), use_container_width=True)
+                st.caption(f"🎭 Host: {host_label}")
+        with host_col_b:
+            st.markdown(f"### {host_label}")
+            st.caption(f"Hosts this simulation — designs experiments, manages turn order, "
+                       f"resolves conflicts, analyzes results.")
+            st.markdown(f"**Task:** {config.task}")
 
         # Show architecture diagram
         with st.expander("🏗️ Architecture — How This Works", expanded=False):
@@ -162,6 +223,10 @@ with tab_sim:
                 color = role_colors.get(ag.role.value, "#757575")
                 ag_model_info = MODEL_BY_ID.get(ag.model)
                 ag_model_label = ag_model_info.display_name if ag_model_info else ag.model
+                # Render slot avatar (Perfect Corp text-to-image) above the card
+                av_path = avatar_path_for(ag.model)
+                if av_path:
+                    st.image(str(av_path), use_container_width=True)
                 st.markdown(f"""
                 <div style="border: 2px solid {color}; border-radius: 10px; padding: 10px; margin: 5px 0;">
                     <strong>{ag.name}</strong><br>
@@ -484,3 +549,157 @@ with tab_perfect:
     st.divider()
     st.caption("Perfect Corp integration for DevNetwork AI+ML Hackathon 2026")
     st.caption("APIs: AI Skin Analysis | AI Skin Tone | AI Makeup VTO | AI Fashion VTO | AI Hair VTO")
+
+
+# =============================================================================
+# TAB 4: Talk to the Catalog — Perfect Corp avatars + live Crusoe chat
+# =============================================================================
+with tab_avatar:
+    st.subheader("🎭 Talk to the Catalog")
+    st.caption(
+        "Every Crusoe model has its own AI-generated character — visual identities "
+        "created live by Perfect Corp's text-to-image API. Pick a model. Talk to it. "
+        "Replies come from the real Crusoe inference endpoint, in that model's voice."
+    )
+
+    # subtle CSS for the avatar "alive" feel
+    st.markdown("""
+    <style>
+      .avatar-card {
+        border: 2px solid #2C3E50; border-radius: 14px; padding: 10px;
+        text-align: center; background: rgba(0,0,0,0.02);
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+      }
+      .avatar-card:hover { transform: translateY(-3px); }
+      @keyframes breathe { 0%,100% { transform: scale(1); } 50% { transform: scale(1.012); } }
+      .avatar-live img { animation: breathe 4s ease-in-out infinite; border-radius: 14px; }
+      .avatar-glow { box-shadow: 0 0 22px var(--glow); border-color: var(--glow); }
+    </style>
+    """, unsafe_allow_html=True)
+
+    # --- Gallery vs. selected ---
+    selected = st.session_state.avatar_selected
+    if selected is None:
+        st.markdown("##### Choose your model")
+        # 7 avatars in a responsive grid (4 cols → 3 wrap)
+        rows = [MODEL_AVATARS[:4], MODEL_AVATARS[4:]]
+        for row in rows:
+            cols = st.columns(len(row))
+            for i, av in enumerate(row):
+                img_path = AVATAR_DIR / f"{av['file']}.jpg"
+                with cols[i]:
+                    if img_path.exists():
+                        st.image(str(img_path), use_container_width=True)
+                    st.markdown(
+                        f"<div style='text-align:center'>"
+                        f"<strong>{av['name']}</strong><br>"
+                        f"<small style='color:{av['color']}'>{av['role']}</small><br>"
+                        f"<small>{av['tagline']}</small>"
+                        f"</div>",
+                        unsafe_allow_html=True,
+                    )
+                    if st.button(f"Talk to {av['name'].split()[0]}",
+                                 key=f"select_{av['file']}",
+                                 use_container_width=True):
+                        st.session_state.avatar_selected = av['model_id']
+                        st.rerun()
+    else:
+        av = MODEL_AVATARS_BY_ID.get(selected)
+        if av is None:
+            st.session_state.avatar_selected = None
+            st.rerun()
+
+        col_avatar, col_chat = st.columns([1, 2])
+
+        with col_avatar:
+            img_path = AVATAR_DIR / f"{av['file']}.jpg"
+            if img_path.exists():
+                st.markdown(
+                    f"<div class='avatar-live' style='--glow:{av['color']}'>",
+                    unsafe_allow_html=True,
+                )
+                st.image(str(img_path), use_container_width=True)
+                st.markdown("</div>", unsafe_allow_html=True)
+            st.markdown(f"### {av['name']}")
+            st.markdown(f"<span style='color:{av['color']}'><strong>{av['role']}</strong></span>",
+                        unsafe_allow_html=True)
+            st.caption(av['tagline'])
+            st.caption(f"Model ID: `{av['model_id']}`")
+
+            if st.button("← Back to gallery", use_container_width=True):
+                st.session_state.avatar_selected = None
+                st.rerun()
+            if st.button("🗑️ Clear chat", use_container_width=True):
+                st.session_state.avatar_chat_history[selected] = []
+                st.rerun()
+
+        with col_chat:
+            history = st.session_state.avatar_chat_history.setdefault(selected, [])
+
+            # render history
+            chat_area = st.container(height=420)
+            with chat_area:
+                if not history:
+                    st.info(f"Say hi to **{av['name']}**. Replies route through Crusoe Managed Inference.")
+                for msg in history:
+                    with st.chat_message(msg["role"]):
+                        st.markdown(msg["content"])
+
+            # input
+            user_msg = st.chat_input(f"Message {av['name']}...")
+            if user_msg:
+                history.append({"role": "user", "content": user_msg})
+
+                # Dispatch to Crusoe (live) or Mock
+                api_key = os.environ.get("CRUSOE_API_KEY", "")
+                if api_key:
+                    from colosseum.crusoe_client import CrusoeClient
+                    client = CrusoeClient()
+                    use_live = True
+                else:
+                    client = MockCrusoeClient(latency_range=(0.4, 1.0))
+                    use_live = False
+
+                system_prompt = (
+                    f"You are {av['name']}, an AI character represented by a Perfect Corp-generated "
+                    f"avatar. Your role: {av['role']}. Your style: {av['tagline']}\n\n"
+                    "Stay in character. Be concise (1-3 short paragraphs). "
+                    "If asked who you are, mention you're powered by your specific model "
+                    "running on Crusoe Cloud Managed Inference."
+                )
+
+                # only send last few messages to keep token budget tight
+                msgs = [{"role": "system", "content": system_prompt}]
+                for m in history[-8:]:
+                    msgs.append({"role": m["role"], "content": m["content"]})
+
+                with chat_area:
+                    with st.chat_message("user"):
+                        st.markdown(user_msg)
+                    with st.chat_message("assistant"):
+                        placeholder = st.empty()
+                        placeholder.markdown("_thinking..._")
+                        try:
+                            resp = client.chat(
+                                messages=msgs,
+                                model=av["model_id"],
+                                temperature=0.7,
+                                max_tokens=512,
+                                timeout=30.0,
+                            )
+                            reply = resp.get("content", "").strip()
+                            if not reply:
+                                reply = "_(empty response — try again)_"
+                            placeholder.markdown(reply)
+                            history.append({"role": "assistant", "content": reply})
+                        except Exception as e:
+                            placeholder.error(f"Crusoe API error: {e}")
+                            history.append({"role": "assistant",
+                                            "content": f"⚠️ Error: {e}"})
+
+                st.session_state.avatar_chat_history[selected] = history
+                badge = "🟢 Live Crusoe" if use_live else "🟡 Offline mock"
+                st.caption(f"{badge} · model: {av['name']}")
+
+    st.divider()
+    st.caption("Perfect Corp × Crusoe — avatars generated live, conversation routed to real model APIs.")
