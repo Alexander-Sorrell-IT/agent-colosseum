@@ -75,7 +75,7 @@ AVAILABLE_MODELS: list[ModelInfo] = [
 MODEL_BY_ID: dict[str, ModelInfo] = {m.id: m for m in AVAILABLE_MODELS}
 MODELS_FOR_AGENTS = [m for m in AVAILABLE_MODELS if m.best_for in ("agent-slot", "orchestrator")]
 DEFAULT_ORCHESTRATOR_MODEL = "nvidia/NVIDIA-Nemotron-3-Super-120B-A12B"
-DEFAULT_AGENT_MODEL = "nvidia/NVIDIA-Nemotron-3-Nano-30B-A3B"
+DEFAULT_AGENT_MODEL = "google/gemma-4-31b-it"
 
 
 # --- Core Types ---

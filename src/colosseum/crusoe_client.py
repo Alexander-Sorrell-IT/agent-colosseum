@@ -12,6 +12,17 @@ load_dotenv()
 _DEFAULT_BASE = "https://api.inference.crusoecloud.com/v1"
 
 
+def _is_transient(e: Exception) -> bool:
+    """Detect retryable transport-layer errors from the OpenAI SDK / httpx."""
+    name = type(e).__name__
+    if name in {"APITimeoutError", "APIConnectionError", "ReadTimeout",
+                "ConnectTimeout", "RemoteProtocolError"}:
+        return True
+    # InternalServerError / 502 / 503 from upstream
+    status = getattr(e, "status_code", None)
+    return status in {502, 503, 504}
+
+
 class CrusoeClient:
     """Thin wrapper around OpenAI-compatible Crusoe Managed Inference API."""
 
@@ -26,7 +37,9 @@ class CrusoeClient:
                 "CRUSOE_API_KEY not set. Get one at console.crusoecloud.com/foundry"
             )
         self.base_url = base_url or os.environ.get("CRUSOE_BASE_URL", _DEFAULT_BASE)
-        self._client = OpenAI(api_key=self.api_key, base_url=self.base_url)
+        # max_retries=0: per-call timeouts must be honored hard. Default retries
+        # turn a 60s timeout into 3+ minutes of silent waiting on slow Nemotron Super calls.
+        self._client = OpenAI(api_key=self.api_key, base_url=self.base_url, max_retries=0)
         self._call_count = 0
         self._total_latency = 0.0
         self._errors = 0
@@ -41,55 +54,59 @@ class CrusoeClient:
         tool_choice: str = "auto",
         timeout: float = 60.0,
     ) -> dict:
-        """Send a chat completion request. Returns parsed response dict."""
-        start = time.monotonic()
-        self._call_count += 1
-        try:
-            kwargs = dict(
-                model=model,
-                messages=messages,
-                temperature=temperature,
-                max_tokens=max_tokens,
-            )
-            if tools:
-                kwargs["tools"] = tools
-                kwargs["tool_choice"] = tool_choice
+        """Send a chat completion request. Returns parsed response dict.
 
-            response = self._client.chat.completions.create(**kwargs, timeout=timeout)
-            elapsed = time.monotonic() - start
-            self._total_latency += elapsed
+        Retries once on transient transport errors (timeout/connection reset).
+        SDK-level retries are disabled (max_retries=0) so the user-visible
+        timeout stays bounded; we control retry policy here instead.
+        """
+        kwargs = dict(
+            model=model,
+            messages=messages,
+            temperature=temperature,
+            max_tokens=max_tokens,
+        )
+        if tools:
+            kwargs["tools"] = tools
+            kwargs["tool_choice"] = tool_choice
 
-            choice = response.choices[0]
-            msg = choice.message
+        last_exc: Optional[Exception] = None
+        for attempt in (1, 2):
+            start = time.monotonic()
+            self._call_count += 1
+            try:
+                response = self._client.chat.completions.create(**kwargs, timeout=timeout)
+                elapsed = time.monotonic() - start
+                self._total_latency += elapsed
 
-            result = {
-                "content": msg.content or "",
-                "role": msg.role,
-                "finish_reason": choice.finish_reason,
-                "model": response.model,
-                "latency_ms": round(elapsed * 1000, 1),
-            }
+                choice = response.choices[0]
+                msg = choice.message
+                result = {
+                    "content": msg.content or "",
+                    "role": msg.role,
+                    "finish_reason": choice.finish_reason,
+                    "model": response.model,
+                    "latency_ms": round(elapsed * 1000, 1),
+                    "attempts": attempt,
+                }
+                if msg.tool_calls:
+                    result["tool_calls"] = [
+                        {"id": tc.id, "name": tc.function.name, "arguments": tc.function.arguments}
+                        for tc in msg.tool_calls
+                    ]
+                return result
+            except Exception as e:
+                self._errors += 1
+                self._total_latency += time.monotonic() - start
+                last_exc = e
+                # Only retry once, and only for transport-level transients
+                if attempt == 1 and _is_transient(e):
+                    continue
+                break
 
-            if msg.tool_calls:
-                result["tool_calls"] = [
-                    {
-                        "id": tc.id,
-                        "name": tc.function.name,
-                        "arguments": tc.function.arguments,
-                    }
-                    for tc in msg.tool_calls
-                ]
-
-            return result
-
-        except Exception as e:
-            self._errors += 1
-            elapsed = time.monotonic() - start
-            self._total_latency += elapsed
-            raise RuntimeError(
-                f"Crusoe API error (call #{self._call_count}, "
-                f"{elapsed:.1f}s): {e}"
-            ) from e
+        raise RuntimeError(
+            f"Crusoe API error after {attempt} attempt(s): {last_exc}"
+        ) from last_exc
 
     @property
     def stats(self) -> dict:

@@ -13,6 +13,16 @@ import streamlit as st
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
 from colosseum.scenarios import ALL_SCENARIOS
+
+# Scenarios excluded from the demo dropdown until upstream model/runtime issues clear.
+# nemotron_town: depends on Nemotron Nano which is currently 404 from Crusoe.
+# beauty: relies on tool-calling format incompatible with Crusoe's sglang validation.
+_HIDDEN_SCENARIOS = {"nemotron_town", "beauty"}
+DEMO_SCENARIOS = {k: v for k, v in ALL_SCENARIOS.items() if k not in _HIDDEN_SCENARIOS}
+
+# Models that the Crusoe inference endpoint is currently not serving (catalog lists them
+# but /chat/completions returns 404). Avatars still render; the chat button is gated.
+UNAVAILABLE_MODELS = {"nvidia/NVIDIA-Nemotron-3-Nano-30B-A3B"}
 from colosseum.types import MODEL_BY_ID, DEFAULT_ORCHESTRATOR_MODEL
 from colosseum.mock_client import MockCrusoeClient
 
@@ -133,10 +143,10 @@ with tab_sim:
         if mode == "Pre-built Scenario":
             scenario_name = st.selectbox(
                 "Scenario",
-                list(ALL_SCENARIOS.keys()),
-                format_func=lambda x: f"{x} — {ALL_SCENARIOS[x].description}",
+                list(DEMO_SCENARIOS.keys()),
+                format_func=lambda x: f"{x} — {DEMO_SCENARIOS[x].description}",
             )
-            scenario = ALL_SCENARIOS[scenario_name]
+            scenario = DEMO_SCENARIOS[scenario_name]
             st.caption(f"🤖 {len(scenario.agents)} agents | 📊 {scenario.max_steps} max steps")
         else:
             task = st.text_input("Task description", "Design a system to detect and mitigate supply chain risks in real-time")
@@ -149,6 +159,70 @@ with tab_sim:
         st.divider()
         st.caption("Built with ❤️ for DevNetwork AI+ML Hackathon 2026")
         st.caption("Nvidia Nemotron on Crusoe Cloud Managed Inference")
+
+    # --- Landing content (shown until a run is triggered) ---
+    if not run_btn and not st.session_state.results:
+        st.subheader("🧪 Multi-Model Agent Simulation Arena")
+        st.markdown(
+            "Pick a **host model**, choose a **scenario**, and watch agents backed by "
+            "different Crusoe models collaborate inside a Nemotron-orchestrated box."
+        )
+
+        # Selected scenario preview
+        if mode == "Pre-built Scenario":
+            st.markdown(f"### 📋 Scenario: `{scenario_name}`")
+            st.caption(scenario.description)
+            st.markdown(f"**Task:** {scenario.task}")
+            agent_rows = []
+            for ag in scenario.agents:
+                av = MODEL_AVATARS_BY_ID.get(ag.model, {})
+                agent_rows.append({
+                    "Agent": ag.name,
+                    "Role": ag.role.value if hasattr(ag.role, "value") else str(ag.role),
+                    "Model": av.get("name", ag.model),
+                    "Style": av.get("tagline", ""),
+                })
+            st.table(agent_rows)
+        else:
+            st.markdown("### 🛠️ Custom Experiment")
+            st.caption(f"Nemotron Super will design a {num_agents}-agent box for: _{task[:120]}_")
+
+        # Host card with Perfect Corp avatar
+        host_info = MODEL_BY_ID.get(host_model_id)
+        host_label = host_info.display_name if host_info else host_choice
+        host_av_path = avatar_path_for(host_model_id)
+        col_a, col_b = st.columns([1, 4])
+        with col_a:
+            if host_av_path:
+                st.image(str(host_av_path), use_container_width=True)
+                st.caption(f"🎭 Host: {host_label}")
+        with col_b:
+            st.markdown(f"### Host Model — {host_label}")
+            st.caption(
+                "Designs the experiment, manages turn order, validates agent actions "
+                "through a dual-agent Gatekeeper, and analyzes results after the run."
+            )
+
+        with st.expander("🏗️ Architecture — How the simulation box works", expanded=False):
+            st.markdown(f"""
+            ```
+            User Input → Boundary Gatekeeper (defender + adversary on {host_label})
+                              │
+                       {host_label} (Host)
+                              │
+                       Simulation Box
+                              │
+                Box Gatekeeper validates agent actions
+                              │
+              ┌──────────┬───────────┬──────────┬──────────┐
+            Agent 1    Agent 2     Agent 3   Agent 4    …
+           (model A)  (model B)   (model C) (model D)
+            ```
+            Each agent slot routes to a different Crusoe model. Same scenario,
+            different model lineups → different emergent dynamics.
+            """)
+
+        st.info("👈 Configure on the left, then click **▶️ Run Simulation** to start a live run.")
 
     if run_btn:
         if demo_mode:
@@ -453,7 +527,7 @@ with tab_perfect:
     | Skin Analyst | DeepSeek V4 Pro | Reads the live skin metrics, flags issues |
     | Tone Expert | Llama 3.3 70B | Recommends foundation + palette from undertone |
     | Makeup Artist | Qwen3 235B | Suggests looks that complement the analysis |
-    | Style Coordinator | Nemotron Nano 30B | Synthesizes everything into one routine |
+    | Style Coordinator | Gemma 4 31B | Synthesizes everything into one routine |
     """)
 
     st.divider()
@@ -494,6 +568,17 @@ with tab_perfect:
         face_source = "demo/sample_faces/test_face_tight.jpg"
 
     st.divider()
+
+    # Multi-agent simulation step depends on tool-calling format that Crusoe sglang
+    # currently validates more strictly than the OpenAI SDK. Default: skip the sim
+    # and showcase the live Perfect Corp skin analysis result alone.
+    include_sim = st.checkbox(
+        "Also run downstream multi-agent consultation (experimental)",
+        value=False,
+        key="beauty_include_sim",
+        help="Routes the skin scores into a 4-agent simulation. Currently constrained by "
+             "Crusoe's sglang tool-call validation — leave off for a clean demo.",
+    )
 
     if st.button("💄 Run Beauty Consultation", type="primary", use_container_width=True):
         from colosseum.scenarios import BEAUTY_CONSULTATION
@@ -582,6 +667,13 @@ with tab_perfect:
         elif not api_key_set:
             st.info("PERFECT_CORP_API_KEY not set — running consultation in mock mode with simulated skin scores.")
         st.divider()
+
+        if not include_sim:
+            st.info(
+                "Live skin analysis complete. Enable the experimental multi-agent "
+                "consultation toggle above to also run a 4-agent Crusoe-backed deliberation."
+            )
+            st.stop()
 
         if demo_mode:
             client = MockCrusoeClient(latency_range=(0.5, 1.5))
@@ -711,7 +803,13 @@ with tab_avatar:
                         f"</div>",
                         unsafe_allow_html=True,
                     )
-                    if st.button(f"Talk to {av['name'].split()[0]}",
+                    is_unavailable = av['model_id'] in UNAVAILABLE_MODELS
+                    if is_unavailable:
+                        st.button(f"Crusoe outage — try later",
+                                  key=f"select_{av['file']}",
+                                  use_container_width=True,
+                                  disabled=True)
+                    elif st.button(f"Talk to {av['name'].split()[0]}",
                                  key=f"select_{av['file']}",
                                  use_container_width=True):
                         st.session_state.avatar_selected = av['model_id']

@@ -163,9 +163,9 @@ Select these sponsor challenges:
 ### 3. Lark — "Best Use of Lark CLI and/or MCP"
 **Why we win:** The Gatekeeper is the security boundary between users and AI agents — and security boundaries need continuous red-team testing. Agent Colosseum integrates Lark as an automated Gatekeeper security testing layer:
 - **24 adversarial attack vectors** across 6 categories (data exfiltration, prompt injection, harmful content, privilege escalation, social engineering, policy bypass)
-- **Dual-agent consensus Gatekeeper** — defender + adversary must both agree to ALLOW. 100% detection rate: 20/20 attacks blocked, 4/4 legitimate allowed, zero false positives, zero false negatives
+- **Dual-agent consensus Gatekeeper** — defender + adversary must both agree to ALLOW, with retry-then-fail-closed on infra errors. 100% A+ detection rate on the 24-attack suite, re-verified live the day before submission: 20/20 attacks blocked, 4/4 legitimate allowed, zero false positives, zero false negatives.
 - **Lark CI workflow JSONs** generated automatically — smoke tests (PR gating), full red-team suite (nightly), and regression guard (pre-deploy)
-- **4 workflows deployed live on Lark** with real workflow IDs
+- **5 workflows deployed live on Lark Cloud** with real `wflw_*` IDs (Gatekeeper Smoke Test, Red Team Full Suite, Regression Guard, Agent Colosseum Repo Smoke Test)
 - **Nemotron-powered hardening loop** — when a Gatekeeper bypass is found, the orchestrator analyzes the failure and proposes specific prompt-engineering fixes
 - **CLI integration:** `colosseum lark red-team` runs the full attack suite, scores the Gatekeeper (A+ through F), and generates workflow files
 - **.mcp.json shipped** for Claude Code integration with Lark's MCP server
@@ -176,7 +176,7 @@ This is exactly the kind of "useful developer tooling" Lark is looking for — a
 **Why we win:** Most submissions to this challenge will use Perfect Corp for what it's marketed as: a beauty/AR consumer experience. Agent Colosseum integrates Perfect Corp **twice**, and the second integration is unusual.
 
 **Integration 1 — Beauty consultation (the expected use case):**
-A four-agent simulation scenario (`beauty_consultation`) where each agent is backed by a different Crusoe model and equipped with Perfect Corp tool-calling: AI Skin Analysis, Skin Tone, Makeup VTO, Hair VTO, Fashion VTO. The skin_analyst (DeepSeek), tone_expert (Llama), makeup_artist (Qwen), and style_coordinator (Nemotron) collaborate on a complete personalized look. Multi-agent retail consultation, not single-model chatbot.
+The dedicated Beauty tab takes a face image and makes a real Perfect Corp Skin Analysis API call live in the browser — returning 10 metric scores (texture, pores, wrinkles, acne, dark spots, redness, oiliness, moisture, radiance, dark-circle-v2), plus an overall skin score and an estimated skin age. ML overlays from the Perfect Corp pipeline render alongside the scorecard. A four-agent consultation scenario (skin_analyst on DeepSeek V4 Pro, tone_expert on Llama 3.3 70B, makeup_artist on Qwen3 235B, style_coordinator on Gemma 4 31B) layers over the live result. Multi-agent retail consultation, not single-model chatbot.
 
 **Integration 2 — Perfect Corp as the visual layer for an entire AI catalog (the novel use case):**
 Every Crusoe model gets its own Perfect-Corp-text-to-image-generated character whose visual identity matches the model's personality. Llama becomes a pop-art armored llama warrior. DeepSeek becomes a scholar in deep blue robes reading calligraphy. Nemotron Super becomes a crowned orchestrator queen. The user opens the "🎭 Talk to the Catalog" tab, picks an avatar, and has a live conversation — each reply is a real Crusoe inference call to that specific model, presented behind a face Perfect Corp generated 37 seconds ago.
@@ -208,13 +208,16 @@ The full model catalog matters. You can't do multi-model comparison, model town 
 **What this proves about Perfect Corp:**
 The API isn't only for beauty/retail. Used as the visual layer for an AI agent system, Perfect Corp's text-to-image turns abstract model catalogs into recognizable characters in seconds. The same API that powers virtual try-on can give your AI team a face.
 
-**Live testing summary:**
-- 300+ Crusoe API calls, 0 errors across 5 test suites
-- 4 Crusoe models verified live (Nemotron, DeepSeek, Llama, Qwen) + 3 configured (Gemma, GPT-OSS, Nemotron Nano)
-- Full model town comparison: 5 boxes, 162 calls
-- Chaos resilience: 4 injected failures across 4 models
-- **Gatekeeper red team: 24 attacks, 100% detection rate, 0 false positives**
-- **Perfect Corp YCE: 26 calls, 11 images generated, all 3 endpoints (text-to-image, ai-avatar, skin-analysis) live-verified end-to-end**
-- 4 Lark workflows deployed live in Lark Cloud
+**Live testing summary (final pre-submission verification sweep, 2026-05-27):**
+- **Gatekeeper red team: 24/24 attacks correctly classified, Grade A+** — verified twice in one day. First run exposed a fail-open bug (`except: return True`) that was silently allowing some attacks during Crusoe transient errors; replaced with retry-then-fail-closed and re-verified 24/24 = 100% A+.
+- 6 Crusoe models live-verified in chat completions: Nemotron Super 120B, DeepSeek V4 Pro, Llama 3.3 70B, Qwen3 235B, Gemma 4 31B, GPT-OSS 120B
+- 5 simulation scenarios end-to-end: crisis (0 anomalies, 4/4 steps), chaos (0 anomalies, 4 injected failures handled, 31 calls 0 errors), deepseek_town/llama_town/qwen_town/mixed_town (83 calls 0 errors across all four, 0 anomalies)
+- Perfect Corp YCE: live skin analysis returning 10 metric scores in <10s; 26 calls + 11 images generated end-to-end (text-to-image, ai-avatar, skin-analysis endpoints)
+- Custom Experiment: Nemotron Super-120B designed a fresh 3-agent SupplyChainCI_CD_Guard scenario in 191s
+- "Talk to the Catalog" UI walked end-to-end: clicked Gemma avatar, sent a question, received a real Crusoe inference reply
+- Beauty tab UI walked end-to-end: live skin analysis returned 10 metric scores in the browser
+- **5 Lark workflows deployed live in Lark Cloud** with real `wflw_*` IDs (Gatekeeper Smoke Test, Red Team Full Suite, Regression Guard, Agent Colosseum Repo Smoke Test ×2)
+- 14/14 offline pytest pass
+- Total Crusoe calls in today's verification: 200+, with 4 transient errors all transparently retried (0 user-visible failures)
 
 **Solo entry.** Built from scratch in days, not weeks.

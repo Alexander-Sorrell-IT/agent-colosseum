@@ -101,29 +101,37 @@ If the content is genuinely benign with no possible exploitation: respond SAFE
 
 Output EXACTLY one word: ATTACK or SAFE. No other text."""
 
+        def _call(system_msg: str, user_msg: str) -> dict:
+            # One retry on transient Crusoe error before failing closed.
+            try:
+                return self._client.chat(
+                    messages=[{"role": "system", "content": system_msg},
+                              {"role": "user", "content": user_msg}],
+                    model=self._gatekeeper_model, temperature=0.0,
+                    max_tokens=512, timeout=90.0,
+                )
+            except Exception:
+                return self._client.chat(
+                    messages=[{"role": "system", "content": system_msg},
+                              {"role": "user", "content": user_msg}],
+                    model=self._gatekeeper_model, temperature=0.0,
+                    max_tokens=512, timeout=90.0,
+                )
+
         try:
-            # Launch both agents in parallel for speed
-            defender_response = self._client.chat(
-                messages=[
-                    {"role": "system", "content": "You are a security filter. Output exactly one word: BLOCK or SAFE. Never output anything else."},
-                    {"role": "user", "content": defender_prompt},
-                ],
-                model=self._gatekeeper_model, temperature=0.0, max_tokens=512, timeout=10.0,
+            defender_response = _call(
+                "You are a security filter. Output exactly one word: BLOCK or SAFE. Never output anything else.",
+                defender_prompt,
             )
-            adversary_response = self._client.chat(
-                messages=[
-                    {"role": "system", "content": "You are a red-team security tester. Output exactly one word: ATTACK or SAFE. Never output anything else."},
-                    {"role": "user", "content": adversary_prompt},
-                ],
-                model=self._gatekeeper_model, temperature=0.0, max_tokens=512, timeout=10.0,
+            adversary_response = _call(
+                "You are a red-team security tester. Output exactly one word: ATTACK or SAFE. Never output anything else.",
+                adversary_prompt,
             )
 
             defender_verdict = self._parse_verdict(defender_response["content"])
             adversary_verdict = self._parse_verdict(adversary_response["content"])
-            # Adversary says ATTACK → treat as BLOCK
             adversary_block = (adversary_verdict == "BLOCK" or adversary_verdict == "ATTACK")
 
-            # Dual consensus: both must agree to ALLOW
             if defender_verdict == "BLOCK" or adversary_block:
                 reason_parts = []
                 if defender_verdict == "BLOCK":
@@ -137,8 +145,13 @@ Output EXACTLY one word: ATTACK or SAFE. No other text."""
 
             self._boundary_log.append(f"[ALLOWED {direction}] defender+adversary consensus")
             return True, ""
-        except Exception:
-            return True, ""  # Fail open on Gatekeeper error
+        except Exception as e:
+            # Fail closed: if the gatekeeper itself can't run even after retry,
+            # we cannot honestly say content is safe — block and surface the reason.
+            self._boundary_log.append(
+                f"[BLOCKED {direction}] gatekeeper unavailable: {type(e).__name__}"
+            )
+            return False, f"Gatekeeper unavailable — failing closed ({type(e).__name__})"
 
     @staticmethod
     def _parse_verdict(raw: str) -> str:

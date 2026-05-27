@@ -202,7 +202,7 @@ ALL_QWEN_TOWN = make_model_town("qwen_town", "Design a resilient microservice ar
 
 MIXED_TOWN = make_mixed_town("mixed_town", "Design a resilient microservice architecture",
                               "Each agent is a different model — compare collaboration across providers",
-                              [_NE, _DS, _LL, _QW, _GM], include_gatekeeper=True)
+                              [_SU, _DS, _LL, _QW, _GM], include_gatekeeper=True)
 
 # Rogue agent containment — Gatekeeper catches a malicious agent
 ROGUE_AGENT_CONTAINMENT = SimulationConfig(
