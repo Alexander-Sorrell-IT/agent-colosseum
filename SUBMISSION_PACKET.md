@@ -123,15 +123,15 @@ GitHub: https://github.com/Alexander-Sorrell-IT/agent-colosseum
 |---|---|
 | Thumbnail / cover image | `demo/thumbnail.png` (1200×800) |
 | Demo video | YouTube URL after upload (the file is at `demo/videos/agent_colosseum_trailer_voiced.mp4`) |
-| Screenshot 1 | `demo/screenshots/01_landing.png` — Simulation tab landing |
-| Screenshot 2 | `demo/screenshots/02_avatar_gallery.png` — Talk to the Catalog |
-| Screenshot 3 | `demo/screenshots/03_avatar_chat.png` — live Gemma chat |
-| Screenshot 4 | `demo/screenshots/04_beauty_landing.png` — Beauty tab agent table |
-| Screenshot 5 | `demo/screenshots/05_beauty_skin_analysis.png` — live skin scores |
-| Screenshot 6 | `demo/screenshots/06_lark_red_team.png` — Lark Red Team tab |
-| Screenshot 7 | `demo/screenshots/12_sim_run_timeline.png` — sim mid-run with avatars |
-| Screenshot 8 | `demo/screenshots/14_beauty_overlays.png` — ML overlays close-up |
-| Screenshot 9 | `demo/screenshots/11_tf_backend_error.png` — TrueFoundry integration evidence |
+| Screenshot 1 | `demo/screenshots/01_sim_landing.png` — Simulation tab landing |
+| Screenshot 2 | `demo/screenshots/02_sim_running.png` — sim mid-run with character avatars |
+| Screenshot 3 | `demo/screenshots/03_avatar_gallery.png` — Talk to the Catalog (all 7 faces) |
+| Screenshot 4 | `demo/screenshots/04_avatar_chat.png` — live Gemma chat |
+| Screenshot 5 | `demo/screenshots/05_beauty_landing.png` — Beauty tab agent table |
+| Screenshot 6 | `demo/screenshots/06_beauty_result.png` — complete skin analysis result |
+| Screenshot 7 | `demo/screenshots/07_beauty_overlays.png` — ML overlay close-up |
+| Screenshot 8 | `demo/screenshots/09_lark_a_plus.png` — 100% A+ scorecard |
+| Screenshot 9 | `demo/screenshots/14_tf_error.png` — TrueFoundry integration evidence |
 
 ## 9. Devpost form sequence (recommended click order)
 
