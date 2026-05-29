@@ -17,6 +17,7 @@ dev = ["pytest>=8", "pytest-asyncio>=0.23"]
 
 [project.scripts]
 colosseum = "colosseum.cli:main"
+mind = "colosseum.mind_cli:main"
 
 [build-system]
 requires = ["setuptools>=68"]

@@ -169,21 +169,34 @@ def test_full_turn_shape():
 
 
 # ── face-state purity (no generation, just state) ──
-def test_face_key_reflects_active_slots_speaker_and_lens():
-    slots = [Slot("m1", "One", "l1"), Slot("m2", "Two", "l2", active=False)]
+def test_face_key_reflects_active_slots_speaker_and_trait():
+    slots = [Slot("m1", "One", "l1", face_trait="ft1"),
+             Slot("m2", "Two", "l2", active=False, face_trait="ft2")]
     m = mind(FakeClient(), slots=slots)
-    assert m.face_key() == ((("m1", "l1"),), NEMOTRON)
-    assert m.face_key(speaker="m1") == ((("m1", "l1"),), "m1")
+    assert m.face_key() == ((("m1", "ft1"),), NEMOTRON)
+    assert m.face_key(speaker="m1") == ((("m1", "ft1"),), "m1")
 
-def test_face_key_changes_with_lens():
-    # same model id + speaker but different lens ⇒ different key (face_prompt depends on lens)
-    m_a = mind(FakeClient(), slots=[Slot("m1", "One", "calm")])
-    m_b = mind(FakeClient(), slots=[Slot("m1", "One", "intense")])
+def test_face_key_changes_with_face_trait():
+    # same model id + speaker but different face_trait ⇒ different key (prompt depends on it)
+    m_a = mind(FakeClient(), slots=[Slot("m1", "One", "lens", face_trait="calm")])
+    m_b = mind(FakeClient(), slots=[Slot("m1", "One", "lens", face_trait="intense")])
     assert m_a.face_key() != m_b.face_key()
 
-def test_face_prompt_leads_with_speaker_lens():
-    m = mind(FakeClient())
+def test_face_prompt_leads_with_speaker_trait():
+    slots = [Slot("m1", "One", "l1", face_trait="trait-one"),
+             Slot("m2", "Two", "l2", face_trait="trait-two")]
+    m = mind(FakeClient(), slots=slots)
     p = m.face_prompt(speaker="m2")
     assert p.startswith("photorealistic")
-    assert "lens two" in p and "lens one" in p
-    assert p.index("lens two") < p.index("lens one")   # speaker first
+    assert "trait-two" in p and "trait-one" in p
+    assert p.index("trait-two") < p.index("trait-one")   # speaker first
+
+def test_face_prompt_uses_short_traits_not_long_lenses():
+    # regression: the cognitive lens must NOT leak into the image prompt (it tripped NSFW)
+    m = mind(FakeClient(), slots=[Slot("m1", "One", "rigorous step-by-step reasoning probing edge cases",
+                                       face_trait="intense, focused")])
+    p = m.face_prompt()
+    assert "intense, focused" in p
+    assert "rigorous step-by-step" not in p          # cognitive lens must NOT leak into the image
+    mood = p.split("expression:")[-1]
+    assert len(mood) < 60                             # the mood suffix stays short/legible

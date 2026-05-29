@@ -92,6 +92,19 @@ provider) so retry/fallback/cooldown are real.
 > stylizer (breaks photoreal) and returned `error_no_face`. **Caching is mandatory** (~20–40s/gen).
 > **Mode 2** uses two different anchor prompts → two stable identities by construction.
 
+> **Animated / talking face — BACKBURNER (decided 2026-05-29, not on the critical path).**
+> The live face is a **morphing photoreal still + UI liveliness** (crossfade between cached
+> state-stills, subtle idle motion). Talking/lip-sync is deferred. Findings: our Perfect Corp
+> key has **no** talking/lip-sync endpoint (all 404; only canned `image-to-video` gimmick
+> templates + the still `text-to-image`). Free routes exist but not live on this GPU-less
+> machine: the genuinely-free path is a **pre-rendered viseme/expression library** for our one
+> fixed identity (render once offline via a free Hugging Face Space/Colab, sequence to TTS at
+> runtime — works *because* identity is constant), or a client-side mouth-flap. Paid streaming
+> avatars (D-ID/HeyGen/Simli) match the "one persistent profile, stream dynamics" model and are
+> the premium upgrade once a GPU/budget exists. **Seam:** `FaceGenerator.image_for()` is the
+> swap point — a future `TalkingFaceGenerator` slots in with no engine change. Revisit after a
+> GPU upgrade; the core never depends on it.
+
 ## Engine design (`src/colosseum/mind.py`) — start here
 
 - `Slot(model_id, label, lens)` — a model in the head + a one-line "lens" (how it tends to think).

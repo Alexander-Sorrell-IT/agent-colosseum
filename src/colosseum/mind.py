@@ -32,11 +32,18 @@ FACE_ANCHOR = (
 
 @dataclass
 class Slot:
-    """A model loaded inside the mind, plus a one-line lens (how it tends to think)."""
+    """A model loaded inside the mind.
+
+    `lens` = how it tends to think (drives its perspective call — cognitive, can be long).
+    `face_trait` = a SHORT visual/emotional descriptor for the morphing face. Kept separate
+    because piling long cognitive lenses into an image prompt both muddies the morph and trips
+    Perfect Corp's NSFW false-positive; the face wants short, legible mood words.
+    """
     model_id: str
     label: str
     lens: str
     active: bool = True
+    face_trait: str = ""
 
 
 @dataclass
@@ -62,15 +69,20 @@ class MindTurn:
 # Default slot roster — the Crusoe catalog as organs of one mind (VISION req #2).
 DEFAULT_SLOTS: list[Slot] = [
     Slot("deepseek-ai/DeepSeek-V4-Pro", "DeepSeek",
-         "rigorous step-by-step reasoning; probes edge cases and hidden assumptions"),
+         "rigorous step-by-step reasoning; probes edge cases and hidden assumptions",
+         face_trait="intense, focused"),
     Slot("meta-llama/Llama-3.3-70B-Instruct", "Llama",
-         "broad, balanced, general-purpose framing; grounds things in common sense"),
+         "broad, balanced, general-purpose framing; grounds things in common sense",
+         face_trait="warm, grounded"),
     Slot("Qwen/Qwen3-235B-A22B-Instruct-2507", "Qwen",
-         "structured and detail-oriented; organizes the problem before answering"),
+         "structured and detail-oriented; organizes the problem before answering",
+         face_trait="precise, attentive"),
     Slot("google/gemma-4-31b-it", "Gemma",
-         "concise and plainspoken; cuts to the most efficient answer"),
+         "concise and plainspoken; cuts to the most efficient answer",
+         face_trait="calm, plainspoken"),
     Slot("openai/gpt-oss-120b", "GPT-OSS",
-         "creative and exploratory; makes lateral connections others miss"),
+         "creative and exploratory; makes lateral connections others miss",
+         face_trait="bright, curious"),
 ]
 
 # ── Gatekeeper (fail closed) ──────────────────────────────────────────
@@ -213,19 +225,24 @@ class Mind:
 
     # ── face-state (generation lands in WI-4) ──
     def face_key(self, speaker: Optional[str] = None) -> tuple[tuple[tuple[str, str], ...], str]:
-        """Identity of the current face-state: (sorted active (slot id, lens), current speaker).
+        """Identity of the current face-state: (sorted active (slot id, face_trait), speaker).
 
-        Includes lens because face_prompt is built from lenses — dropping it would let two
-        different faces collide on one cache key.
+        Keyed on face_trait (what face_prompt is built from) so two different faces never
+        collide on one cache key.
         """
-        return (tuple(sorted((s.model_id, s.lens) for s in self.active_slots)),
+        return (tuple(sorted((s.model_id, s.face_trait) for s in self.active_slots)),
                 speaker or self.main_model)
 
     def face_prompt(self, speaker: Optional[str] = None) -> str:
-        """Photoreal prompt: fixed identity anchor + expression from active slots, speaker first."""
+        """Photoreal prompt: fixed identity anchor + a SHORT mood from active slots, speaker first.
+
+        Uses each slot's short `face_trait` (not its long cognitive lens) so the prompt stays
+        legible and image-safe.
+        """
         speaker = speaker or self.main_model
         active = self.active_slots
-        lead = next((s.lens for s in active if s.model_id == speaker), None)
-        traits = ([lead] if lead else []) + [s.lens for s in active if s.model_id != speaker]
-        mood = "; ".join(traits) if traits else "calm, neutral"
-        return f"{FACE_ANCHOR}; expression shaped by: {mood}"
+        lead = next((s.face_trait for s in active if s.model_id == speaker and s.face_trait), None)
+        traits = ([lead] if lead else []) + [s.face_trait for s in active
+                                             if s.model_id != speaker and s.face_trait]
+        mood = ", ".join(traits) if traits else "calm, neutral, composed"
+        return f"{FACE_ANCHOR}; expression: {mood}"
