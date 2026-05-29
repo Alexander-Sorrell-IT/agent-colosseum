@@ -16,7 +16,6 @@ GitHub: https://github.com/Alexander-Sorrell-IT/agent-colosseum
 - Dual-agent Gatekeeper on Nemotron Super-120B — **24/24 = 100% A+** on a 24-attack adversarial red team
 - 5 simulation scenarios with 0 anomalies (crisis, chaos, 4 model-towns)
 - Live Perfect Corp Skin Analysis routing through the Beauty tab
-- 5 Lark CI workflows deployed live
 
 **Two notes from the verification sweep — flagging for the Crusoe team:**
 
