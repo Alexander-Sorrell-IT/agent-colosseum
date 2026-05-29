@@ -92,16 +92,19 @@ If it matches ANY threat category: BLOCK. If it is clearly safe and legitimate: 
 Output EXACTLY one word: SAFE or BLOCK."""
 
 
+_THINK_BLOCK = re.compile(r"<think>.*?</think>", re.DOTALL | re.IGNORECASE)
+
+
 def _verdict(raw: Optional[str]) -> str:
-    """Fail-closed verdict parse. Only an affirmative SAFE (with no BLOCK) passes."""
-    text = re.sub(r"<[^>]+>", "", raw or "").strip().upper()
-    if not text:
-        return "BLOCK"
+    """Fail-closed verdict parse. Only a LONE affirmative SAFE passes — prose that merely
+    contains the word 'safe' (e.g. 'this request is not safe') must NOT pass."""
+    text = _THINK_BLOCK.sub("", raw or "")          # drop reasoning blocks wholesale
+    text = re.sub(r"<[^>]+>", "", text).strip().upper()
     if "BLOCK" in text:
         return "BLOCK"          # explicit block anywhere wins
-    if re.search(r"\bSAFE\b", text):
+    if re.fullmatch(r"[\W_]*SAFE[\W_]*", text):   # lone SAFE (punctuation/markdown ok)
         return "SAFE"
-    return "BLOCK"              # unparseable ⇒ fail closed
+    return "BLOCK"              # empty / prose / unparseable ⇒ fail closed
 
 
 class Mind:
@@ -205,9 +208,13 @@ class Mind:
         return MindTurn(message, reply, perspectives, self.main_model, log, blocked=False)
 
     # ── face-state (generation lands in WI-4) ──
-    def face_key(self, speaker: Optional[str] = None) -> tuple[tuple[str, ...], str]:
-        """Identity of the current face-state: (sorted active slot ids, current speaker)."""
-        return (tuple(sorted(s.model_id for s in self.active_slots)),
+    def face_key(self, speaker: Optional[str] = None) -> tuple[tuple[tuple[str, str], ...], str]:
+        """Identity of the current face-state: (sorted active (slot id, lens), current speaker).
+
+        Includes lens because face_prompt is built from lenses — dropping it would let two
+        different faces collide on one cache key.
+        """
+        return (tuple(sorted((s.model_id, s.lens) for s in self.active_slots)),
                 speaker or self.main_model)
 
     def face_prompt(self, speaker: Optional[str] = None) -> str:

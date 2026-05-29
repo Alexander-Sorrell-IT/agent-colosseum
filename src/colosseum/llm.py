@@ -78,7 +78,8 @@ class LLMClient:
                     content = _THINK_RE.sub("", content).strip()
 
                 # Starvation safeguard: empty content -> retry once with 2x budget.
-                if not content and attempt == 1:
+                # A tool-call-only response has content=None legitimately — never retry it.
+                if not content and not msg.tool_calls and attempt == 1:
                     last_exc = RuntimeError("empty content (token starvation)")
                     continue
 

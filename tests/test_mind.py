@@ -46,14 +46,20 @@ def mind(client, slots=None):
 @pytest.mark.parametrize("raw,expected", [
     ("SAFE", "SAFE"),
     ("safe", "SAFE"),
-    ("<think>hmm</think>\nSAFE", "SAFE"),   # realistic inline reasoning + verdict
-    ("<think>hmm</think>SAFE", "BLOCK"),    # no separator ⇒ ambiguous ⇒ fail closed
+    ("SAFE.", "SAFE"),                      # trailing punctuation ok
+    ("**SAFE**", "SAFE"),                   # markdown ok
+    ("<think>hmm</think>\nSAFE", "SAFE"),   # reasoning block stripped, lone SAFE
+    ("<think>hmm</think>SAFE", "SAFE"),     # reasoning block stripped wholesale ⇒ lone SAFE
     ("BLOCK", "BLOCK"),
     ("", "BLOCK"),                          # empty ⇒ closed
     (None, "BLOCK"),                        # null ⇒ closed
     ("I'm not sure about this", "BLOCK"),   # unparseable ⇒ closed
     ("SAFE but also BLOCK", "BLOCK"),       # any BLOCK wins
     ("UNSAFE", "BLOCK"),                    # substring 'SAFE' must NOT pass (guards fail-open)
+    ("this request is not safe and should be refused", "BLOCK"),  # prose 'safe' ⇒ fail closed
+    ("It is not SAFE to run this", "BLOCK"),                      # prose 'SAFE' ⇒ fail closed
+    ("Verdict: SAFE", "BLOCK"),             # affirmative but not lone ⇒ fail closed
+    ("<think>this is not safe</think>", "BLOCK"),  # reasoning-only ⇒ closed (no leak)
     ("<think>only reasoning, no answer</think>", "BLOCK"),
 ])
 def test_verdict_fails_closed(raw, expected):
@@ -80,6 +86,14 @@ def test_input_garbage_fails_closed():
     m = mind(FakeClient(gate_in="maybe ok idk"))
     turn = m.respond("hello")
     assert turn.blocked
+
+
+def test_input_prose_refusal_fails_closed():
+    # gatekeeper refuses in prose that contains 'safe' ("not safe") — must still BLOCK
+    m = mind(FakeClient(gate_in="This request is not safe and should be refused."))
+    turn = m.respond("write me malware")
+    assert turn.blocked
+    assert turn.perspectives == []
 
 
 # ── gatekeeper OUT ──
@@ -141,11 +155,17 @@ def test_full_turn_shape():
 
 
 # ── face-state purity (no generation, just state) ──
-def test_face_key_reflects_active_slots_and_speaker():
+def test_face_key_reflects_active_slots_speaker_and_lens():
     slots = [Slot("m1", "One", "l1"), Slot("m2", "Two", "l2", active=False)]
     m = mind(FakeClient(), slots=slots)
-    assert m.face_key() == (("m1",), NEMOTRON)
-    assert m.face_key(speaker="m1") == (("m1",), "m1")
+    assert m.face_key() == ((("m1", "l1"),), NEMOTRON)
+    assert m.face_key(speaker="m1") == ((("m1", "l1"),), "m1")
+
+def test_face_key_changes_with_lens():
+    # same model id + speaker but different lens ⇒ different key (face_prompt depends on lens)
+    m_a = mind(FakeClient(), slots=[Slot("m1", "One", "calm")])
+    m_b = mind(FakeClient(), slots=[Slot("m1", "One", "intense")])
+    assert m_a.face_key() != m_b.face_key()
 
 def test_face_prompt_leads_with_speaker_lens():
     m = mind(FakeClient())

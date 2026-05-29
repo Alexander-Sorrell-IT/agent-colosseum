@@ -18,7 +18,15 @@ from colosseum.perfect_corp_client import PerfectCorpClient, get_perfect_client
 
 REALISTIC_TEMPLATE = "style_realistic"
 
-FaceKey = tuple[tuple[str, ...], str]
+FaceKey = tuple[tuple[tuple[str, str], ...], str]
+
+
+def _is_image(data: bytes) -> bool:
+    """True only if bytes start with a known image magic — guards against caching junk."""
+    return (data[:3] == b"\xff\xd8\xff"                      # JPEG
+            or data[:8] == b"\x89PNG\r\n\x1a\n"              # PNG
+            or data[:6] in (b"GIF87a", b"GIF89a")            # GIF
+            or (data[:4] == b"RIFF" and data[8:12] == b"WEBP"))  # WEBP
 
 
 def _extract_image(result: dict) -> Optional[bytes]:
@@ -46,13 +54,15 @@ def _extract_image(result: dict) -> Optional[bytes]:
     for u in urls:
         try:
             r = requests.get(u, timeout=30)
-            if r.ok and r.content[:1] not in (b"{", b"<"):  # not JSON/HTML error
+            if r.ok and _is_image(r.content):       # real image bytes only
                 return r.content
         except Exception:
             continue
     for b in b64s:
         try:
-            return base64.b64decode(b.replace("\n", ""), validate=False)
+            data = base64.b64decode(b.replace("\n", ""), validate=False)
+            if _is_image(data):                     # don't accept decodable-but-junk strings
+                return data
         except Exception:
             continue
     return None
@@ -69,29 +79,31 @@ class FaceGenerator:
         self.cache_dir = pathlib.Path(cache_dir) if cache_dir else None
         if self.cache_dir:
             self.cache_dir.mkdir(parents=True, exist_ok=True)
-        self._mem: dict[FaceKey, bytes] = {}
+        # Keyed on (template_id, face_key): different templates must not collide.
+        self._mem: dict[tuple[str, FaceKey], bytes] = {}
         self.generations = 0  # real API generations performed (cache misses)
 
     def _disk_path(self, key: FaceKey) -> Optional[pathlib.Path]:
         if not self.cache_dir:
             return None
-        digest = hashlib.sha256(repr(key).encode()).hexdigest()[:16]
+        digest = hashlib.sha256(f"{self.template_id}|{key!r}".encode()).hexdigest()[:16]
         return self.cache_dir / f"face_{digest}.jpg"
 
     def image_for(self, key: FaceKey, prompt: str) -> Optional[bytes]:
         """Return the portrait bytes for a face-state, generating only on a cache miss."""
-        if key in self._mem:
-            return self._mem[key]
+        mem_key = (self.template_id, key)
+        if mem_key in self._mem:
+            return self._mem[mem_key]
 
         path = self._disk_path(key)
         if path and path.exists():
             data = path.read_bytes()
-            self._mem[key] = data
+            self._mem[mem_key] = data
             return data
 
         data = self._generate(prompt)
         if data:
-            self._mem[key] = data
+            self._mem[mem_key] = data
             if path:
                 path.write_bytes(data)
         return data

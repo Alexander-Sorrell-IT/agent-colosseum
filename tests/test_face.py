@@ -71,3 +71,20 @@ def test_extract_image_prefers_base64():
 
 def test_extract_image_none_when_absent():
     assert _extract_image({"status": "success", "note": "no image here"}) is None
+
+
+def test_extract_image_rejects_decodable_junk():
+    # a long base64-decodable string that is NOT an image must be rejected, not cached
+    junk = "Z" * 640                      # decodes, but no image magic
+    assert _extract_image({"results": [{"trace_id": junk}]}) is None
+
+
+def test_different_templates_do_not_collide(tmp_path):
+    fake = FakePerfect()
+    k = (("m1",), "mind")
+    real = FaceGenerator(client=fake, template_id="style_realistic", cache_dir=str(tmp_path))
+    anime = FaceGenerator(client=fake, template_id="style_anime", cache_dir=str(tmp_path))
+    real.image_for(k, "p")
+    anime.image_for(k, "p")               # same face_key, different template
+    assert fake.calls == 2                # must NOT serve the realistic image for anime
+    assert real._disk_path(k) != anime._disk_path(k)
