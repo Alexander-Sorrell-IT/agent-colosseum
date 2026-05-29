@@ -1,8 +1,7 @@
-"""Agent Colosseum — simulate multi-agent environments before you deploy."""
+"""Agent Colosseum — you talk to ONE mind whose cognition is a catalog of models.
 
-from colosseum.simulation.orchestrator import Orchestrator
-from colosseum.simulation.engine import SimulationBox
-from colosseum.scenarios import ALL_SCENARIOS
-from colosseum.lark_red_team import LarkGatekeeperRedTeam, ATTACK_VECTORS
-
-__all__ = ["Orchestrator", "SimulationBox", "ALL_SCENARIOS", "LarkGatekeeperRedTeam", "ATTACK_VECTORS"]
+The package no longer eagerly imports the legacy simulation stack: doing so dragged the
+rejected multi-model-comparison build into the import path of the VISION engine. Import what
+you need directly, e.g. `from colosseum.mind import Mind`. (Legacy modules remain importable
+by their own paths until they are removed per VISION's teardown plan.)
+"""

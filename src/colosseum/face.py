@@ -110,7 +110,10 @@ class FaceGenerator:
 
     def _generate(self, prompt: str) -> Optional[bytes]:
         self.generations += 1
-        res = self.client.text_to_image(prompt, self.template_id)
+        try:
+            res = self.client.text_to_image(prompt, self.template_id)
+        except Exception:  # noqa: BLE001 — face generation must degrade to None, never raise
+            return None
         if not isinstance(res, dict) or res.get("status") != "success":
             return None
         return _extract_image(res.get("result", res))

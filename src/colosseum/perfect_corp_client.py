@@ -163,7 +163,7 @@ class PerfectCorpClient:
             body = resp.json()
             data = body.get("data") or body.get("result") or body
             # task_status is the actual progress field; some endpoints use status
-            ts = (data.get("task_status") or data.get("status") or "").lower()
+            ts = str(data.get("task_status") or data.get("status") or "").lower()
 
             if ts in ("success", "completed", "done"):
                 return {"status": "success", "result": data.get("results") or data.get("result") or data}

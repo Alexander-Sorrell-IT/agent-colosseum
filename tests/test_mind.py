@@ -115,6 +115,20 @@ def test_empty_synthesis_surfaces_honest_state():
     assert any("degraded" in line for line in turn.gatekeeper_log)
 
 
+def test_raised_synthesis_degrades_not_crashes():
+    # synthesis raising (post-retry LLM error) must DEGRADE, not crash the turn
+    class RaiseSynth(FakeClient):
+        def chat(self, messages, model, **kw):
+            if "Inner perspectives" in messages[-1]["content"]:
+                raise RuntimeError("LLM error after 2 attempt(s): boom")
+            return super().chat(messages, model, **kw)
+    m = mind(RaiseSynth())
+    turn = m.respond("hello")               # must not raise
+    assert not turn.blocked
+    assert turn.reply.strip() != ""
+    assert any("SYNTH error" in line for line in turn.gatekeeper_log)
+
+
 # ── slots: real fan-out + resilience ──
 def test_each_active_slot_is_called():
     fake = FakeClient()

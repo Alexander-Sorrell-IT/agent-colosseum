@@ -63,6 +63,15 @@ def test_failed_generation_not_cached():
     assert fake.calls == 2            # not cached, so it retries
 
 
+def test_client_exception_degrades_to_none():
+    # a raising Perfect Corp client must degrade to None, never propagate out of image_for
+    class RaisePerfect:
+        def text_to_image(self, prompt, template_id):
+            raise RuntimeError("perfect corp down")
+    gen = FaceGenerator(client=RaisePerfect())
+    assert gen.image_for((("m1",), "mind"), "p") is None   # must not raise
+
+
 def test_extract_image_prefers_base64():
     raw = base64.b64encode(b"\xff\xd8\xff" + b"y" * 800).decode()
     out = _extract_image({"results": [{"image": raw}]})

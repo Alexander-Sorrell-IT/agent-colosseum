@@ -192,9 +192,13 @@ class Mind:
                             [], self.main_model, log, blocked=True)
 
         perspectives = [self._slot_perspective(s, message, history) for s in self.active_slots]
-        reply = self._synthesize(message, history, perspectives)
+        try:
+            reply = self._synthesize(message, history, perspectives)
+        except Exception as e:  # noqa: BLE001 — synthesis failure degrades, never crashes the turn
+            log.append(f"SYNTH error — {type(e).__name__}")
+            reply = ""
         if not reply:
-            log.append("SYNTH degraded — empty after retry")
+            log.append("SYNTH degraded — empty or errored after retry")
             return MindTurn(message,
                             "My thoughts didn't converge into a reply just now — try again.",
                             perspectives, self.main_model, log, blocked=False)
