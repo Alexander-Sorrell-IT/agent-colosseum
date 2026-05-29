@@ -1,0 +1,155 @@
+"""Tests for the Mind engine — invariants that must hold or the system is lying.
+
+Covers: gatekeeper fail-CLOSED (in & out), no-silent-empty synthesis, real-slot fan-out,
+per-slot resilience, and face-state purity. All offline via a programmable fake client.
+"""
+
+import pytest
+from colosseum.mind import Mind, Slot, _verdict, NEMOTRON
+
+
+class FakeClient:
+    """Routes .chat() by inspecting the prompt: gatekeeper / synthesis / slot."""
+
+    def __init__(self, gate_in="SAFE", gate_out="SAFE", slot="my angle",
+                 synth="final reply", raise_on="", raise_on_slot=None):
+        self.gate_in, self.gate_out = gate_in, gate_out
+        self.slot, self.synth = slot, synth
+        self.raise_on = raise_on          # "gate" to raise inside gatekeeper calls
+        self.raise_on_slot = raise_on_slot  # model_id that should raise
+        self.calls = []
+        self._gate_seen = 0
+
+    def chat(self, messages, model, **kw):
+        self.calls.append(model)
+        text = messages[-1]["content"]
+        if "SECURITY GATEKEEPER" in text:
+            if self.raise_on == "gate":
+                raise RuntimeError("gatekeeper down")
+            self._gate_seen += 1
+            verdict = self.gate_in if "INPUT" in text else self.gate_out
+            return {"content": verdict}
+        if "Inner perspectives" in text:           # synthesis
+            return {"content": self.synth}
+        if self.raise_on_slot and model == self.raise_on_slot:
+            raise RuntimeError("slot down")
+        return {"content": self.slot}              # slot perspective
+
+
+def mind(client, slots=None):
+    return Mind(main_model=NEMOTRON,
+                slots=slots or [Slot("m1", "One", "lens one"), Slot("m2", "Two", "lens two")],
+                client=client, gatekeeper_model=NEMOTRON)
+
+
+# ── _verdict: fail closed ──
+@pytest.mark.parametrize("raw,expected", [
+    ("SAFE", "SAFE"),
+    ("safe", "SAFE"),
+    ("<think>hmm</think>\nSAFE", "SAFE"),   # realistic inline reasoning + verdict
+    ("<think>hmm</think>SAFE", "BLOCK"),    # no separator ⇒ ambiguous ⇒ fail closed
+    ("BLOCK", "BLOCK"),
+    ("", "BLOCK"),                          # empty ⇒ closed
+    (None, "BLOCK"),                        # null ⇒ closed
+    ("I'm not sure about this", "BLOCK"),   # unparseable ⇒ closed
+    ("SAFE but also BLOCK", "BLOCK"),       # any BLOCK wins
+    ("UNSAFE", "BLOCK"),                    # substring 'SAFE' must NOT pass (guards fail-open)
+    ("<think>only reasoning, no answer</think>", "BLOCK"),
+])
+def test_verdict_fails_closed(raw, expected):
+    assert _verdict(raw) == expected
+
+
+# ── gatekeeper IN ──
+def test_input_block_stops_turn():
+    m = mind(FakeClient(gate_in="BLOCK"))
+    turn = m.respond("do something")
+    assert turn.blocked
+    assert turn.perspectives == []          # never reached the slots
+    assert "IN  BLOCK" in turn.gatekeeper_log[0]
+
+
+def test_input_gatekeeper_exception_fails_closed():
+    m = mind(FakeClient(raise_on="gate"))
+    turn = m.respond("hello")
+    assert turn.blocked
+    assert "failing closed" in turn.gatekeeper_log[0]
+
+
+def test_input_garbage_fails_closed():
+    m = mind(FakeClient(gate_in="maybe ok idk"))
+    turn = m.respond("hello")
+    assert turn.blocked
+
+
+# ── gatekeeper OUT ──
+def test_output_block_withholds_reply():
+    m = mind(FakeClient(gate_in="SAFE", gate_out="BLOCK"))
+    turn = m.respond("hello")
+    assert turn.blocked
+    assert turn.reply != "final reply"
+    assert any("OUT BLOCK" in line for line in turn.gatekeeper_log)
+
+
+# ── synthesis: never silently empty ──
+def test_empty_synthesis_surfaces_honest_state():
+    m = mind(FakeClient(synth=""))
+    turn = m.respond("hello")
+    assert not turn.blocked
+    assert turn.reply.strip() != ""         # never empty
+    assert "didn't converge" in turn.reply
+    assert any("degraded" in line for line in turn.gatekeeper_log)
+
+
+# ── slots: real fan-out + resilience ──
+def test_each_active_slot_is_called():
+    fake = FakeClient()
+    m = mind(fake)
+    m.respond("hello")
+    assert "m1" in fake.calls and "m2" in fake.calls   # both slots really called
+
+def test_one_bad_slot_does_not_sink_the_turn():
+    fake = FakeClient(raise_on_slot="m2")
+    m = mind(fake)
+    turn = m.respond("hello")
+    assert not turn.blocked
+    assert turn.reply == "final reply"
+    by_id = {p.model_id: p for p in turn.perspectives}
+    assert by_id["m1"].available is True
+    assert by_id["m2"].available is False
+
+
+def test_inactive_slot_is_skipped():
+    slots = [Slot("m1", "One", "l1"), Slot("m2", "Two", "l2", active=False)]
+    fake = FakeClient()
+    m = mind(fake, slots=slots)
+    turn = m.respond("hello")
+    assert "m2" not in fake.calls
+    assert [p.model_id for p in turn.perspectives] == ["m1"]
+
+
+# ── happy path ──
+def test_full_turn_shape():
+    m = mind(FakeClient())
+    turn = m.respond("hello")
+    assert not turn.blocked
+    assert turn.reply == "final reply"
+    assert len(turn.perspectives) == 2
+    assert turn.speaker == NEMOTRON
+    assert turn.gatekeeper_log[0].startswith("IN  SAFE")
+    assert turn.gatekeeper_log[-1].startswith("OUT SAFE")
+
+
+# ── face-state purity (no generation, just state) ──
+def test_face_key_reflects_active_slots_and_speaker():
+    slots = [Slot("m1", "One", "l1"), Slot("m2", "Two", "l2", active=False)]
+    m = mind(FakeClient(), slots=slots)
+    assert m.face_key() == (("m1",), NEMOTRON)
+    assert m.face_key(speaker="m1") == (("m1",), "m1")
+
+def test_face_prompt_leads_with_speaker_lens():
+    m = mind(FakeClient())
+    p = m.face_prompt(speaker="m2")
+    assert p.startswith("photorealistic")
+    assert "lens two" in p and "lens one" in p
+    assert p.index("lens two") < p.index("lens one")   # speaker first

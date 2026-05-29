@@ -7,3 +7,5 @@ dist/
 build/
 .pytest_cache/
 demo/videos/
+scripts/face_spike_out/
+scripts/face_cache_test/
